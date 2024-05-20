@@ -1,0 +1,8 @@
+/* Estilo para los captions de las figuras */
+.figure .caption {
+  font-style: bold;
+  font-size: 0.8em;
+  color: #555555;
+  text-align: center;
+  margin-top: 1px;
+}
