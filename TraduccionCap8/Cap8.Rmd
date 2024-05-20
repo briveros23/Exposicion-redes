@@ -1,0 +1,1176 @@
+---
+title: "Modelado y Prediccion de procesos en redes"
+author: 
+  - Alejandro Urrego Lopez 
+  - Brayan Camilo Riveros Guarnizo 
+  - Cesar Augusto Prieto Sarmiento
+date: "2024-05-02"
+output: 
+  html_document:
+    theme: readable
+    code_folding: hide
+    css: styles.css
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Mostrar el código en el documento
+  warning = FALSE,     # Ocultar warnings
+  message = FALSE,     # Ocultar mensajes
+  fig.width = 10,       # Ancho de las figuras
+  fig.height = 7,      # Alto de las figuras
+  fig.align = 'center' # Alinear las figuras en el centro
+)
+```
+
+## 8.1 Introducción
+
+Hay ocasiones en las que en una red es más interesante considerar los
+atributos de cada nodo en lugar de las relaciones. Es razonable pensar
+que estos atributos se ven influenciados por las conexiones que existen
+en la red; por ejemplo, los comportamientos y creencias de las personas
+pueden verse fuertemente influenciados por sus interacciones sociales.
+Estos atributos asociados con tales fenómenos pueden ser tratados como
+procesos estocásticos definidos en la red. Formalmente, el atributo $X$
+puede ser representado mediante una colección de variables aleatorias
+indexadas por el grafo de una red $G = (V, E)$ o visto de otra forma
+como $\{X_i\}$ para $i \in V$ o $\{X_i(t)\}$, con $t$ variando en el
+tiempo. Por ejemplo, la funcionalidad de las proteínas puede verse como
+variables categóricas asociadas a cada uno de los vértices $i \in V$.
+Así se referirá al proceso como un proceso estático y como un proceso
+dinámico.
+
+Con estos atributos surge la capacidad de estudiarlos mediante su
+modelado y la inferencia de los parámetros de dichos modelos y su
+correspondiente predicción. La mayor parte de este trabajo está
+desarrollada para procesos estáticos.
+
+## 8.2 Método del vecino más cercano
+
+Se comienza con el problema de predicción con un proceso estático
+asociado a un grafo mediante uno de los métodos más simples, llamado
+"predicción del vecino más cercano", que consiste en considerar una
+colección de atributos nodales $\{X_i\}$ que no dependen del tiempo,
+formando así un proceso estático. Para ilustrar esto, se utilizará el
+dataset "ppi.CC", que contiene los datos de una red de 134 proteínas y
+241 interacciones, así como varios atributos de las mismas.
+
+```{r,include=T}
+set.seed(42)
+suppressWarnings(library(sand))
+data(ppi.CC)
+summary(ppi.CC)
+
+```
+
+Estos datos pertenecen a la levadura de panadería, el organismo conocido
+formalmente como Saccharomyces cerevisiae. Fueron reunidos por Jiang et
+al. [12] de diversas fuentes y se refieren únicamente a aquellas
+proteínas anotadas con el término "comunicación celular" en la base de
+datos de ontología genética (GO), una base de datos estándar para
+términos que describen la función de las proteínas. El atributo de
+vértice ICSC (función) es un vector binario que indica aquellas
+proteínas anotadas con el término GO "cascada de señalización
+intracelular" (ICSC), una forma específica de comunicación celular.
+
+```{r}
+V(ppi.CC)$ICSC[1:10]
+```
+
+Al graficar la red, se puede observar que hay homogeneidad respecto a
+los atributos de los nodos, ya que si un la función de un nodo es ICSS
+se le asigna el color azul, y de lo contrario, el color amarillo y al
+observar los nodos vecinos generalmente comparten el mismo color, por lo
+tanto, es un buen indicador de que la predicción local del ICSS debería
+ser factible.
+
+```{r, fig.cap = " Fig. 8.1 - Red de interacciones entre proteínas conocidas como responsables de la comunicación celular en la levadura. Los vértices amarillos denotan proteínas que se sabe que participan en cascadas de señalización intracelular, una forma específica de comunicación en la célula. El resto de proteínas se indican en azul"}
+
+V(ppi.CC)[ICSC == 1]$color <- "yellow"
+V(ppi.CC)[ICSC == 0]$color <- "blue"
+plot(ppi.CC, vertex.size=5, vertex.label=NA)
+```
+
+Un método efectivo para hacer predicciones locales es el método del
+vecino más cercano (hay que averiguar más sobre este método no
+paramétrico). Para una red, el cálculo del vecino más cercano para un
+vértice $i \in V$ se hace encontrando el promedio del vecino más
+cercano:
+
+$$
+\frac{\sum_{j \in \eta_{i}} x_j}{|\eta_{i}|}
+$$
+
+Es decir, el promedio de los valores del vector de atributos en una
+vecindad de $\eta_{i}$, donde $|\eta_{i}|$ es el número de vecinos de
+$i$ en $G$. El cálculo de todos estos promedios sobre todos los vértices
+$i \in V$ corresponde a un suavizado nearest-neighbor $X$ en toda la
+red.
+
+Al momento de predecir la función de una proteína (nodo), $\vec{X}$ es
+un vector binario, cuyas entradas indican si presenta la función de
+interés, en este caso ICSC. Al predecir con este modelo, usualmente se
+compara con un umbral de 0.5. Luego, si el promedio de los vecinos más
+cercanos es mayor a ese umbral, se dirá que la predicción $X_i = 1$.
+Estos métodos suelen ser conocidos como "guilt-by-association".
+
+Para tener una idea de qué tan efectivo puede ser el método del vecino
+más cercano en el conjunto de datos de levaduras, se puede calcular el
+promedio del vecino más cercano para cada una de las proteínas en la
+componente gigante de la red.
+
+```{r}
+clu <- components(ppi.CC)
+ppi.CC.gc <- induced_subgraph(ppi.CC, 
+   clu$membership==which.max(clu$csize))
+nn.ave <- sapply(V(ppi.CC.gc),
+   function(x) mean(V(ppi.CC.gc)[.nei(x)]$ICSC))
+
+```
+
+Se hacen dos histogramas de los promedios, separando según si la
+proteína tiene como funcionalidad ICSC o no.
+
+```{r,  fig.cap="Fig. 8.2 Histogramas de los promedios del vecino más próximo para la red mostrada en la Fig. 8.1, separados según el estado del vértice que define cada vecindad"}
+
+par(mfrow=c(2,1))
+hist(nn.ave[V(ppi.CC.gc)$ICSC == 1], col="yellow",
+   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
+   main="Egos w/ ICSC")
+hist(nn.ave[V(ppi.CC.gc)$ICSC == 0], col="blue",
+   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
+   main="Egos w/out ICSC")
+```
+
+Luego, al comparar los valores predichos con los de la red, se puede
+observar que se puede hacer una predicción bastante buena al utilizar un
+umbral de 0.5, con una tasa de error aproximadamente del $25\%$.
+
+```{r}
+nn.pred <- as.numeric(nn.ave > 0.5)
+print(mean(as.numeric(nn.pred != V(ppi.CC.gc)$ICSC)))
+
+```
+
+Se puede repetir este ejercicio con otra base de datos, como GO, en la
+que hay proteínas con funcionalidades desconocidas que constantemente se
+van actualizando. Así, se pueden comparar dos versiones de esta base de
+datos para ver qué tal predice este método, comparando con las proteínas
+de las cuales se actualiza su funcionalidad.
+
+```{r, include=FALSE}
+#install.packages('devtools')
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+#BiocManager::install(update = FALSE)
+#BiocManager::install(c("GOstats","GO.db"), update = FALSE)
+#BiocManager::install("org.Sc.sgd.db")
+suppressWarnings(library(GOstats))
+suppressWarnings(library(GO.db))
+suppressWarnings(library(org.Sc.sgd.db))
+```
+
+Se extraen esas proteínas con la función ICSC, ahora subsumida bajo el
+término de transducción de señales intercelulares (ICST), o etiqueta GO
+003556, y se mantienen solo aquellas que han sido identificadas mediante
+ensayos experimentales directos, según lo indicado por el código de
+evidencia 'IDA'.
+
+```{r}
+x <- as.list(org.Sc.sgdGO2ALLORFS)
+current.icst <- x[names(x) == "GO:0035556"]
+ev.code <- names(current.icst[[1]])
+icst.ida <- current.icst[[1]][ev.code == "IDA"]
+
+```
+
+Luego, se separa los nombres de aquellas proteínas que tenían ICSC en
+los datos originales.
+
+```{r}
+orig.icsc <- V(ppi.CC.gc)[ICSC == 1]$name
+```
+
+Y de manera similar, se extraen los nombres de aquellas proteínas bajo
+las nuevas anotaciones que estaban presentes en el componente conectado
+gigante de la red original.
+
+```{r}
+candidates <- intersect(icst.ida, V(ppi.CC.gc)$name)
+```
+
+Entre estos candidatos, hay siete que han sido descubiertos
+recientemente que tiene como funcionalidad ICSC, con los siguientes
+nombres.
+
+```{r}
+new.icsc <- setdiff(candidates, orig.icsc)
+new.icsc
+```
+
+Y entre estos siete, se encuentra que tres de ellos habrían sido
+correctamente predichos al comparar el valor de sus promedios de vecinos
+más cercanos con un umbral de 0.5.
+
+```{r}
+nn.ave[V(ppi.CC.gc)$name %in% new.icsc]
+```
+
+## 8.3 Campo aleatorio de Markov
+
+El método del vecino más cercano puede generalizarse mediante la
+construcción de un modelo estadístico apropiado, lo que permite crear un
+modelo que estime y haga inferencias sobre sus parámetros, además de
+realizar predicciones más precisas.
+
+Este modelado permite incluir variables tanto endógenas como exógenas de
+la red. Los campos aleatorios de Markov (MRF) representan un paradigma
+de modelado bien desarrollado que logra cumplir estos objetivos.
+
+### Caracterización general
+
+Sea $G=(V,E)$ un grafo y $\textbf{X}=(X_1,X_2,\dots,X_{N_V})^T$ una
+colección de variables aleatorias definidas en $V$. Se dirá que
+$\textbf{X}$ es un campo aleatorio de Markov en $G$ si:
+
+$$
+\begin{align*}
+&P(X=x)>0 \text{ para todos los posibles valores de } x \\
+&P(X_i=x_i|X_{-i}=x_{-i})=P(X_i=x_i|X_{N_i}=x_{N_i})
+\end{align*}
+$$
+
+Donde $X_{-i}=(X_1,X_2,\dots, X_{i-1},X_{i+1},\dots, X_{N_V})$ y
+$X_{N_i}$ es el vector de todos los $X_j$ para $j$ en $\eta_i$. La
+primera expresión resulta ser una condición técnica útil al momento de
+definir propiedades, y la segunda expresión muestra que $X_i$ es
+condicionalmente independiente de todos los demás $X_k$, dados los
+valores de sus vecinos, donde la estructura de la vecindad está
+determinada por $G$. El concepto de MRF puede verse como una
+generalización de una cadena de Markov. Las MRF son utilizadas
+ampliamente en la estadística espacial.
+
+Una característica clave que facilita el uso práctico de los campos
+aleatorios de Markov es su equivalencia, en condiciones apropiadas, con
+campos aleatorios de Gibbs, es decir, vectores aleatorios con
+distribuciones de la forma:
+
+$$
+P(X=x)\left(\frac{1}{\kappa}\right)\exp\left\{U(x)\right\}
+$$
+
+Donde $U(\cdot)$ es conocida como función de energía y
+$\kappa = \sum_x \exp\left\{U(x)\right\}$ es la función partición que
+puede ser descompuesta como la suma de clanes en $G$ de la forma
+$U(x)=\sum_{c \in C} U_c(x)$, con $C$ el conjunto de todos los clanes en
+$G$.
+
+Los modelos MRF pueden tener expresiones realmente complicadas que
+dificultan los cálculos al momento de ajustarlos. Por lo tanto, por lo
+general se simplifican haciendo algunos supuestos, como:
+
+-   Se asume que $U_c$ no depende de la posición del clan.
+-   Se asumen clanes de tamaño limitado para evitar particiones vacías
+    de $U_c$.
+
+Con esto en mente, se centrará en los MRF comúnmente utilizados en el
+análisis de redes para modelar datos de atributos binarios en los
+vértices, como el ICSC visto previamente en el ejemplo anterior. Estos
+modelos se denominan autoligísticos. Para atributos continuos, se
+aplican modelos llamados autogaussianos, que no se trataron en el texto.
+
+### Modelos Autologisticos
+
+La clase de modelos autoligísticos se remonta a Besag, quien sugirió
+introducir las siguientes condiciones adicionales en los MRF:
+
+-   Solo los clanes $c\in C$ de tamaño uno o dos tienen funciones de
+    energía $U_c$ distintas de cero, denominado dependencia solo por
+    pares o Homogeneidad.
+-   Las probabilidades condicionales tienen una forma de la familia
+    exponencial.
+
+Así, bajo estas condiciones, la función potencial toma la forma:
+
+$$ U(x)=\sum_{i \in V}x_iH_i(x_i)+\sum_{\{i,j\}\in E} B_{ij}x_ix_j $$
+
+para alguna función $H_i(\cdot)$ y coeficientes $\{\beta_{ij}\}$. Los
+modelos con esta función de energía son llamados modelos auto por Besag.
+
+Ahora, supongamos que $X_i$ es una variable aleatoria binaria. Bajo las
+adecuadas condiciones de normalización, la función $H_i$ puede solo
+contribuir con la expansión de $U(x)$ de una manera no trivial cuando
+$x_i=1$. Por lo tanto, se puede mostrar que:
+
+$$ U(x)=\sum_{i\in V}\alpha_ix_i+\sum_{\{i,j\}\in E} B_{ij}x_ix_j $$
+
+Para algún parámetro $\{\alpha_i\}$. El modelo MRF resultante es llamado
+modelo autoligístico debido a que las probabilidades condicionales
+quedan de la forma:
+
+$$ P(X_i=1|X_{\eta_i}=x_{\eta_i})=\frac{\exp(\alpha_i+\sum_{j\in \eta_i} \beta_{ij}x_ix_j)}{1+\exp(\alpha_i+\sum_{j\in \eta_i} \beta_{ij}x_ix_j)} $$
+
+Mostrando regresión logística de $x_i$ sobre sus $x_j$ vecinos.
+
+Al asumir homogeneidad, se puede simplificar este modelo. Por ejemplo,
+especificando que $\alpha_i\equiv\alpha$ y $\beta_{ij}\equiv\beta$:
+
+$$ P(X_i=1|X_{\eta_i}=x_{\eta_i})=\frac{\exp(\alpha+\beta\sum_{j\in \eta_i} x_j)}{1+\exp(\alpha+\beta\sum_{j\in \eta_i} x_j)} $$
+
+Este modelo indica que el logaritmo del odds condicional $x_i=1$ escala
+linealmente en el número de vecinos $j$ de $i$ con el valor $X_j = 1$:
+
+$$ \log\left(\frac{P(X_i=1|X_{\eta_i}=x_{\eta_i})}{P(X_i=0|X_{\eta_i}=x_{\eta_i})}\right)=\alpha+\beta\sum_{j\in \eta_i}x_j $$
+
+Por lo tanto, se puede ver cómo estos modelos autoligísticos homogéneos
+pueden efectivamente ser vistos como extensiones probabilísticas del
+método del vecino más cercano. El paquete 'ngspatial' en R permite la
+especificación y el ajuste de dichos modelos.
+
+```{r,include = T}
+library(ngspatial)
+```
+
+Mas precisamente, este paquete permite modelos con efectos tanto
+endógenos como exógenos, en el que el logaritmo del odds condicional
+toma la forma:
+
+$$ \log\left(\frac{P(X_i=1|X_{\eta_i}=x_{\eta_i},Z_i=z_i)}{P(X_i=0|X_{\eta_i}=x_{\eta_i},Z_i=z_i)}\right)=Z_i^T\alpha+\beta\sum_{j\in \eta_i}(x_j-\mu_j) $$
+
+Aquí $Z_i$ son vectores de variables exógenas, indexados por el vértice
+$i$, y $\alpha$ es el vector de los coeficientes.
+$\mu_j=1+\exp\{-z^T_j\alpha\}-1$ es el valor esperado de $X_j$ bajo
+independencia, es decir, cuando $\beta=0$. La presencia de $\mu_j$
+equivale a centrar el modelo, lo cual es útil en el momento de la
+interpretación.
+
+Por lo tanto, la especificación de estos modelos requiere tres
+elementos: el proceso $X_i$ que se quiere modelar, la red $G$ y el
+conjunto de variables exógenas relevantes. Volviendo al problema de
+predecir la función de la proteína ICSC en la red PPI.CC, las dos
+primeras especificaciones se logran mediante las siguientes
+asignaciones.
+
+```{r}
+X <- V(ppi.CC.gc)$ICSC
+A <- as_adjacency_matrix(ppi.CC.gc, sparse=FALSE)
+```
+
+La última especificación depende de qué información adicional se desea
+incorporar. Por ejemplo, si solo se desea tener la intersección,
+entonces se indica de la forma:
+
+```{r}
+formula1 <- X~1
+```
+
+Alternativamente, la biología indica que varios tipos de información de
+proteínas además de las interacciones pueden ser útiles para predecir la
+función de las proteínas. Un ejemplo es la información sobre la
+secuencia genética subyacente al gen que codifica una proteína
+determinada. Por ejemplo, los motivos genéticos son secuencias cortas de
+ADN que se cree que tienen propiedades biológicas cuya importancia
+influye en la configuración de las proteínas. Indicadores de la
+presencia o ausencia de estos motivos se incluyen en la red ppi.cc como
+variables de atributo de vértice, cada una de las cuales comienza con
+las letras "IPR". Estos naturalmente son candidatos para variables
+exógenas del modelo.
+
+```{r}
+gene.motifs <- cbind(V(ppi.CC.gc)$IPR000198,
+                     V(ppi.CC.gc)$IPR000403,
+                     V(ppi.CC.gc)$IPR001806,
+                     V(ppi.CC.gc)$IPR001849,
+                     V(ppi.CC.gc)$IPR002041,
+                     V(ppi.CC.gc)$IPR003527)
+formula2 <- X ~ gene.motifs
+```
+
+### Inferencia y predicción para modelos autologísticos
+
+Al igual que con el método del vecino más cercano, nos centraremos
+nuevamente en la tarea de predicción del proceso $\{X_i\}$ de la red.
+Sin embargo, a diferencia del caso anterior, para este modelo se
+necesitan estimar algunos parámetros en el momento de su implementación,
+que en este caso para el modelo autolístico son $\alpha$ y $\beta$.
+Estos parámetros son capaces de estimarse mediante los datos que
+tenemos.
+
+La tarea de estimar el vector $(\alpha^T,\beta)$ se aborda mediante el
+método de máxima verosimilitud. Como usualmente se hace para encontrar
+estos parámetros, se maximiza la log-verosimilitud ya que es equivalente
+a maximizar la verosimilitud. Por lo tanto, el estimador
+$(\hat{\alpha},\hat{\beta})$ es el valor que maximiza la expresión:
+
+$$ \alpha M_1(x) + \beta M_{11}(x) - \kappa(\alpha,\beta) $$
+
+Aquí $M_1(x)$ es el número de vértices que tienen el atributo, es decir,
+la variable $x_i=1$, $M_{11}$ es el doble del número de pares de
+vértices donde ambos tienen el atributo, en otras palabras, donde
+$x_i=x_j=1$ para alguna arista $(i,j) \in G$, $\kappa(\alpha,\beta)$ es
+la función de partición del modelo que fue definida anteriormente. Como
+en algunos modelos vistos en clase, la función $\kappa$ es muy
+demandante computacionalmente, por lo tanto, esta maximización se hace
+mediante el método denominado pseudo-máxima verosimilitud, originalmente
+propuesto por Besag para el análisis de datos espaciales. Esta
+alternativa es computacionalmente factible y muy popular en los modelos
+MRF. Para el caso específico de los modelos autolísticos, en lugar de
+maximizar la log-verosimilitud marginal, se maximiza la pseudo
+log-verosimilitud:
+
+$$ \sum_{i\in V} \log P(X_i=x_i|X_{\eta_i}=x_{\eta_i}) $$
+
+Que es el logaritmo del producto de las probabilidades condicionales de
+cada $x_i$ observado, dados los valores de sus vecinos. Es importante
+destacar que estas probabilidades condicionales no involucran la función
+de partición $\kappa$. Así, para el modelo autolístico sin efectos
+exógenos, se puede demostrar que la estimación de la
+pseudo-verosimilitud es el valor que maximiza la siguiente expresión:
+
+$$ \alpha M_1(x) + \beta M_{11}(x) - \sum_{i=1}^{N_V} \log \left[ 1+\exp\left( \alpha+\beta\sum_{j\in \eta_i}x_j \right) \right] $$
+
+La maximización de la pseudo-verosimilitud generalmente difiere de la
+estimación de la verosimilitud. Sin embargo, por experiencia, se ha
+demostrado que son bastante precisas, siempre y cuando las dependencias
+inherentes a la distribución conjunta completa no sean demasiado fuertes
+como para ignorarlas. Estas estimaciones pueden hacerse usando la
+función autolig de 'ngspatial'. Por ejemplo, se puede ajustar el modelo
+más simple de los modelos a los datos de las proteínas de la siguiente
+manera:
+
+```{r}
+m1.mrf <- autologistic(formula1, A=A,
+                       control=list(confint="none"))
+
+```
+
+Con los coeficientes estimados (se puede calcular un intervalo de
+confianza utilizando procesamiento en paralelo):
+
+```{r}
+m1.mrf$coefficients
+```
+
+Se puede observar que en estos datos, la adición de una proteína vecina,
+es decir, una diada nueva al grafo, cuyo vecino tenga la función ISCS,
+incrementa el log-odds del vértice de interés de tener la funcionalidad
+ICSC por un factor aproximado de 1.135.
+
+Para tener alguna idea de cuán efectivo se podría ser al predecir la
+funcionalidad ICSC, se considerará la regla de predicción simple de que
+una proteína tiene ICSC si la probabilidad ajustada
+$P(x_i=1|X_{\eta_i}=x_{\eta_i})$ es mayor a 0.5.
+
+```{r}
+mrf1.pred <- as.numeric((m1.mrf$fitted.values > 0.5))
+```
+
+Lo que produce una tasa de error de aproximadamente del 20 %.
+
+```{r}
+mean(as.numeric(mrf1.pred != V(ppi.CC.gc)$ICSC))
+```
+
+Esto es menos que la tasa de error del 25% obtenida con el método del
+vecino más cercano. Sin embargo, con respecto a las siete proteínas que
+se descubrieron que tenían como funcionalidad ICSC entre el 2007 y el
+2017, se encontró que este modelo y el método del vecino más cercano son
+similares, es decir, se acierta con las mismas cuatro predicciones que
+se acertó con el método de los vecinos más cercanos.
+
+```{r}
+m1.mrf$fitted.values[V(ppi.CC.gc)$name %in% new.icsc]
+```
+
+Ahora se incluye la información de los motivos genéticos en un nuevo
+modelo.
+
+```{r}
+m2.mrf <- autologistic(formula2, A=A,
+                       control=list(confint="none"))
+m2.mrf$coefficients
+
+```
+
+Hay un efecto mayor que que el del modelo anterior, es decir,
+aproximadamente 1,30.
+
+```{r}
+m2.mrf$coefficients
+```
+
+Y la tasa de error mejora ligeramente.
+
+```{r}
+mrf.pred2 <- as.numeric((m2.mrf$fitted.values > 0.5))
+mean(as.numeric(mrf.pred2 != V(ppi.CC.gc)$ICSC))
+```
+
+Pero quizás lo más interesante es que este modelo parece acercarse mucho
+más que el modelo más simple a predecir correctamente la función ICSC
+para cinco de las siete proteínas de interés (utilizando un umbral de
+0.5).
+
+```{r}
+m2.mrf$fitted.values[V(ppi.CC.gc)$name %in% new.icsc]
+```
+
+### Bondad y ajuste
+
+Una de las maneras de evaluar la bondad de ajuste del modelo es mediante
+la simulación. Por lo tanto, dado un modelo MRF ajustado, se realiza
+simulación del proceso $X_i$ a partir de este modelo. Luego se calculan
+varias estadísticas que resumen las características de estas
+realizaciones y se comparan los resultados con los datos originales. La
+función `rautologist` del paquete 'ngspatial' se puede utilizar para
+simular realizaciones de modelos autolísticos centrados. El siguiente
+código simula 100 realizaciones de cada uno de los dos modelos
+autolísticos considerados anteriormente para la predicción de la función
+proteica ICSS. Para cada realización $X$, se calcula el coeficiente de
+asortatividad $r_a$ con respecto a la red 'ppi.CC.gc':
+
+$$ r_a = \frac{\sum_i f_{ii}-\sum_i f_{i\cdot}f_{\cdot i}}{1-\sum_i f_{i\cdot}f_{\cdot i}} $$
+
+```{r}
+set.seed(42)       # random seed for rautologistic
+ntrials <- 100
+a1.mrf <- numeric(ntrials)
+a2.mrf <- numeric(ntrials)
+Z1 <- rep(1,length(X))
+Z2 <- cbind(Z1, gene.motifs)
+for(i in 1:ntrials){
+  X1.mrf <- rautologistic(as.matrix(Z1), A=A,
+                          theta=m1.mrf$coefficients)
+  X2.mrf<- rautologistic(as.matrix(Z2), A=A,
+                         theta=m2.mrf$coefficients)
+  a1.mrf[i] <- assortativity(ppi.CC.gc, X1.mrf+1,
+                             directed=FALSE)
+  a2.mrf[i] <- assortativity(ppi.CC.gc, X2.mrf+1,
+                             directed=FALSE)
+}
+
+```
+
+El coeficiente de asortatividad para las etiquetas observadas
+originalmente de la funcionalidad proteica ICSSC es aproximadamente
+0.37, bastante alto, lo que es consistente con los hallazgos de que la
+ICSC puede predecirse razonablemente bien de las interacciones
+proteína-proteína.
+
+```{r}
+assortativity(ppi.CC.gc, X+1, directed=FALSE)
+```
+
+Comparando este valor con la distribución de los valores obtenidos bajo
+los dos modelos trabajados anteriormente, se encuentra que cae en el
+cuartil superior, sugiriendo que la bondad de ajuste de los modelos no
+es mala pero probablemente se pueda mejorar.
+
+```{r}
+summary(a1.mrf)
+```
+
+```{r}
+summary(a2.mrf)
+```
+
+## Método Kernel
+
+Los modelos probabilísticos que se acaban de ver utilizan la estructura
+de dependencia entre los atributos de vértice $X_i$ con respecto a la
+topología de grafo $G$, pero en algunos casos, como cuando el único
+objetivo es la predicción de atributos no observados de algunos vértices
+, puede considerarse suficientemente simple aprender sobre una función
+que relacione los vértices y los atributos. El método del vecino más
+cercano, en principio, produce tal función aunque implícitamente.
+
+Para una construcción más explícita, parece una buena idea pensar en un
+enfoque basado en la regresión, es decir, esencialmente una regresión
+con el grafo $G$. Sin embargo, los métodos clásicos de regresión, como
+los mínimos cuadrados, se utilizan para relacionar una variable
+respuesta y unas variables explicativas sobre un espacio euclidiano.
+
+Así, una solución a este problema es aplicando métodos kernel que han
+demostrado ser útiles para extender el paradigma de regresión clásico a
+diversos entornos con datos no tradicionales. En el nivel más básico,
+estos métodos consisten en:
+
+-   Una noción generalizada de variables predictivas (codificadas en el
+    llamado núcleo).
+-   Una regresión con una variable respuesta sobre los predictores
+    generalizados utilizando una regresión penalizada.
+
+Se empezará presentando la noción de un kernel en un grafo y luego se
+analizará el enfoque básico del kernel para el modelado con regresión en
+el contexto de los grafos.
+
+### Regresión Kernel
+
+El modelo de regresión kernel simple se utiliza cuando la variable
+respuesta $y$ es continua y solo hay una variable explicativa $x$,
+también continua. Se supone que se observan $n$ pares de datos
+$(x_i,y_i)$ que provienen del siguiente modelo de regresión no
+paramétrico:
+
+$$
+y_i = m(x_i) + \epsilon_i
+$$
+
+Donde $\epsilon_i$ son variables aleatorias independientes. En
+principio, no se especifica la forma funcional de la función de la
+regresión $m(x)$. Una forma de definir esta función es tomar un valor
+concreto $t$ de la variable explicativa y ponderar los datos de forma
+que el peso de una observación $(x_i,y_i)$ sea una función decreciente
+de la distancia de $x_i$ al punto $t$ donde se realiza la estimación.
+Una ventaja de definir así la función es que se tendrá un estimador
+continuo de la función de regresión.
+
+La fórmula usual para asignar estos pesos es mediante una función kernel
+$K$ que cumple las siguientes características:
+
+-   Es simétrica y no negativa.
+-   Continua.
+-   Decreciente en el intervalo $[0, \infty)$.
+-   Tiende a 0 cuando el argumento tiende a infinito.
+
+El peso de $(x_i,y_i)$ en la estimación de $m(t)$ será:
+
+$$
+\omega_i = \omega(t,x_i) = \frac{K\left(\frac{x_i - t}{h}\right)}{\sum_{j=1}^n K\left(\frac{x_j - t}{h}\right)}
+$$
+
+Donde $h$ es un parámetro de escala que controla la concentración del
+peso total alrededor de $t$.
+
+Una vez determinados los pesos $\omega_i$, se resuelve el problema de
+mínimos cuadrados ponderados:
+
+$$
+\underset{\beta_0, \beta_1}{\text{arg min}} \sum_{i=1}^n \omega_i \left(y_i - (\beta_0 + \beta_1(x_i - t))\right)^2
+$$
+
+Así, los parámetros $\beta_0$ y $\beta_1$ dependen de $t$. La recta de
+regresión ajustada localmente alrededor de $t$ es:
+
+$$
+l_t(x) = \beta_0 + \beta_1(x - t)
+$$
+
+Y la estimación de la función de regresión en el punto $t$ es el valor
+que toma esta recta en $x = t$:
+
+$$
+\hat{m}(x) = l_t(t) = \beta_0
+$$
+
+Para extender la regresión kernel al caso en el que hay $p$ regresores
+es directo:
+
+$$
+y_i = m(x_{i1},\dots,x_{ip}) + \epsilon_i
+$$
+
+Ahora, para definir la función de regresión, se necesita definir los
+pesos de cada $\omega_i$ de cada observación.
+
+La definición de los pesos $\omega_i$ debe seguir la misma lógica que en
+el caso univariado. Si se quiere estimar en el punto $t$ con
+$t=(t_1,\dots,t_p)$, los datos $x_{i1},\dots,x_{ip}$ deben ser aquellos
+con valores de las variables explicativas $x$ más cercanos a $t$,
+teniendo en cuenta la dimensión $p$ en la que se encuentran estos datos.
+Una forma de definir estas distancias es utilizando un kernel
+$p$-dimensional.
+
+Una forma sencilla de asignar pesos $\omega_i$ que da buenos resultados
+en la práctica es la siguiente:
+
+$$
+\omega_i = \omega(t,x_i) \propto \prod_{j=1}^p K\left(\frac{x_{ij} - t_j}{h_j}\right)
+$$
+
+Donde $K$ es un kernel univariado. Si se toman núcleos gaussianos, esto
+equivale a asignar pesos alrededor de $t$ usando como kernel
+$p$-dimensional la función de densidad normal multivariada con $p$
+coordenadas independientes, cada una de ellas con varianza $h_j^2$.
+
+### Diseño de kernel en grafos:
+
+En términos generales, los kernel pueden considerarse funciones que
+producen matrices de similitud. Las variables predictoras utilizadas en
+la regresión kernel se derivan a su vez de estas matrices de similitud.
+En el contexto de regresión kernel en grafos, el kernel describe la
+similitud entre los vértices en el grafo $G$. Dado que $G$ está definido
+para representar dichas similitudes, es común construir kernels que
+resuman la topología de $G$.
+
+Formalmente, una función $K$, que recibe dos pares de vértices $(i,j)$
+como entrada y devuelve un valor real como salida, es llamada un kernel
+(positivo semidefinido) si para cada $m=1,\dots,N_V$ y un subconjunto de
+vértices $\{i_1,\dots,i_m\} \in V$ la matriz
+$K^{(m)}_{m \times m}=[k(i_j,i_{j'})]$ es simétrica y semidefinida
+positiva.
+
+Aunque la proximidad de los vértices está codificada en la matriz de
+adyacencia $A$, es más común ver el grafo laplaciano usado en la
+regresión kernel.
+
+Recordando que el laplaciano se define como $L=D_A$ donde $D$ es una
+matriz diagonal. El kernel laplaciano se define como la inversa
+generalizada de $L$, es decir $K=L^{-1}$.
+
+Así, $L=\Phi\Gamma\Phi^T$, donde $\Phi$ es una matriz diagonal y
+$\Gamma=diag(\gamma_i)$ ortogonal que se obtiene de la descomposición
+espectral de $L$. Entonces, la inversa generalizada de esta está dada
+por
+
+$$ L^- = \sum_{i=1}^{N_v} f(\gamma_i) \phi_i \phi_i^T $$
+
+Donde $\phi_i$ es la $i$-ésima columna de $\Phi$ y
+
+$$ f(\gamma) = \begin{cases}
+\gamma^{-1} & \text{si } \gamma \neq 0, \\
+0 & \text{en otro caso.}
+\end{cases} $$
+
+Por consiguiente, los valores del proceso $\{X_i\}$ en el grafo $G$ en
+la regresión Kernel son predichos como una combinación lineal de los
+vectores propios $\phi_i$, es decir, en cantidades de la forma
+$h=\Phi\beta$.
+
+Sin embargo, para limitar la elección de tales cantidades al ajustar los
+datos, se utilizan estrategias de regresión penalizadas en las que se
+recomienda que
+$\beta^T\Gamma\beta = \sum_{i=1}^{N_v} \gamma_i \beta_i^2$ sea pequeño,
+pero como
+
+$$
+\beta^T\Gamma\beta = \beta^T\Phi^T\Phi\Gamma\Phi^T\Phi\beta = h^T L h = \sum_{\{i,j\} \in E} (h_i - h_j)^2
+$$
+
+Así, minimizar $\beta^T\Gamma\beta$ equivale a minimizar $h^T L h$, lo
+que a su vez se minimiza cuando los vértices $i$ y $j$ adyacentes son
+cercanos. En otras palabras, el uso del kernel $K=L^-$ hace una
+regresión kernel que busque vectores $h=\Phi\beta$ que sean localmente
+suaves con respecto a la topología de $G$. Por lo tanto, se puede hacer
+una regresión kernel se comporte de manera similar en grafos de la
+manera que se han visto en los dos métodos que son campos aleatorios de
+Markov y el vecino más cercano.
+
+A modo de ejemplo, se volverá a considerar la red de interacción de
+proteínas ppi.CC. En la siguiente figura se muestran los pesos
+$f(\gamma_i)$ definidos como el kernel Laplaciano $K=L^-$ para el
+componente gigante de esta red.
+
+```{r,fig.cap="Fig. 8.3 Gráfico de los pesos f (γi ) que definen el núcleo laplaciano"}
+
+par(mfrow=c(1,1))
+L <- as.matrix(laplacian_matrix(ppi.CC.gc))
+e.L <- eigen(L)
+nv <- vcount(ppi.CC.gc)
+e.vals <- e.L$values[1:(nv-1)]
+f.e.vals <- c((e.vals)^(-1), 0)
+plot(f.e.vals, col="magenta", xlim=c(1, nv),
+     xlab=c("Index i"), ylab=expression(f(gamma[i])))
+
+```
+
+Debido a que la componente conexa está conectada, el valor propio más
+pequeño $\gamma_{\text{min}}$ de $L$ es cero, y todos los demás son
+positivos. Tras la inversión de los valores propios distintos de cero,
+mediante la aplicación de la función $f(\gamma)$ definida anteriormente,
+se puede observar que hay pocos pesos que son muy grandes comparándolos
+con el peso de los demás.
+
+Como resultado de este comportamiento, se puede establecer que la
+estructura de $K$ está regida en gran medida por una poca cantidad de
+vectores propios. En la siguiente visualización se muestra la
+representación visual de los vectores propios correspondientes a los
+tres pesos más grandes.
+
+```{r, fig.cap="Fig. 8.3 Representación visual de los vectores propios φi correspondientes a los pesos f (γi ) mayor, segundo mayor y tercero mayor (de izquierda a derecha) de la red de interacción de proteínas ppi.CC.gc. Los valores negativos se muestran en azul, y los positivos, en rojo, con el área de cada vértice proporcional a la magnitud de su entrada en el correspondiente vector propio #8.32"}
+
+par(mfrow=c(1,3))
+e.vec <- e.L$vectors[, (nv-1)]
+v.colors <- character(nv)
+v.colors[e.vec >= 0] <- "red"
+v.colors[e.vec < 0] <- "blue"
+v.size <- 15 * sqrt(abs(e.vec))
+l <- layout_with_fr(ppi.CC.gc)
+plot(ppi.CC.gc, layout=l, vertex.color=v.colors,
+     vertex.size=v.size, vertex.label=NA)
+
+e.vec <- e.L$vectors[, (nv-2)]
+v.colors <- character(nv)
+v.colors[e.vec >= 0] <- "red"
+v.colors[e.vec < 0] <- "blue"
+v.size <- 15 * sqrt(abs(e.vec))
+l <- layout_with_fr(ppi.CC.gc)
+plot(ppi.CC.gc, layout=l, vertex.color=v.colors,
+     vertex.size=v.size, vertex.label=NA)
+
+e.vec <- e.L$vectors[, (nv-3)]
+v.colors <- character(nv)
+v.colors[e.vec >= 0] <- "red"
+v.colors[e.vec < 0] <- "blue"
+v.size <- 15 * sqrt(abs(e.vec))
+l <- layout_with_fr(ppi.CC.gc)
+plot(ppi.CC.gc, layout=l, vertex.color=v.colors,
+     vertex.size=v.size, vertex.label=NA)
+
+```
+
+Ahora, para aplicar los métodos de regresión kernel al problema de
+modelar y predecir los procesos en la red con el paquete `kernlab` de R:
+
+```{r}
+library(kernlab)
+```
+
+Este paquete contiene implementaciones de una variedad de métodos kernel
+basados en machine learning. El kernel laplaciano para la red de
+interacción proteína-proteína es construido y declarado como un objeto
+kernel de la siguiente manera:
+
+```{r}
+K1.tmp <- e.L$vectors %*% diag(f.e.vals) %*%
+  t(e.L$vectors)
+K1 <- as.kernelMatrix(K1.tmp)
+```
+
+La noción de kernel es bastante general y, por lo tanto, no sorprende
+que existan otras formas de definir un kernel en otros contextos. Por
+ejemplo, Smola y Kondor introdujeron una clase más general de kernels
+basados en una cierta noción de regularización, en la que la función $f$
+se reemplaza por varias otras opciones de función suave.
+
+Por otro lado, es posible que se deba combinar múltiples fuentes de
+información para construir un kernel. Un enfoque común para hacerlo es
+codificar cada fuente separada de información en su propio kernel y
+luego definir el kernel $K$ como una combinación convexa de esos kernels
+(para mantener la simetría y la precisión positiva). Por ejemplo, al
+incluir los motivos genéticos ayudó a predecir la función proteica ICSC
+con modelos de campos aleatorios de Markov: una forma sencilla de
+codificar esta información en un kernel es mediante el uso de productos
+internos, lo que da como resultado al llamado producto interno kernel.
+
+```{r}
+K.motifs <- gene.motifs %*% t(gene.motifs)
+```
+
+Al darle un peso igual a este kernel y al kernel laplaciano, resulta en
+un kernel que incorpora tanto variables endógenas como exógenas de la
+red.
+
+```{r}
+K2.tmp <- 0.5 * K1.tmp + 0.5 * K.motifs
+K2 <- as.kernelMatrix(K2.tmp)
+
+```
+
+### Regresión del kernel en grafos.
+
+Ahora, formalizando la noción de regresión kernel en grafos e ilustrando
+el tipo de rendimiento que se puede obtener en el contexto del problema
+de predicción. Sea $G=(V,E)$ un grafo y $X=(X_1,\dots, X_{N_V})$ un
+proceso sobre un atributo nodal. Desde la perspectiva de la regresión
+Kernel, el objetivo es aprender de los datos sobre una función apropiada
+$\hat{h}$, que mapea de $V$ a $\mathbb{R}$, que describa bien la manera
+en que los atributos varían entre los vértices. Más Precisamente, dado
+un núcleo $K$, con descomposición espectral $K=\Phi \Delta \Phi$, en la
+Regresión Kernel se busca encontrar una elección óptima de $h$ dentro de
+la clase
+$$ \mathbb{H}_K=\{h:h=\Phi\beta t \beta^T\Delta^{-1}\beta<\infty\} $$
+
+Cuando $h$ es un vector de longitud $|N_v|$. Para elegir un elemento $h$
+apropiado en $\mathbb{H}_k$, denominado $\hat{h}$ se emplea una
+estrategia de regresión penalizada forzando a encontrar un $\hat{h}$ que
+esté cerca de los datos observados y sea lo suficientemente suave.
+Específicamente se produce una estimación $\hat{h}=\Phi\hat{\beta}$
+seleccionando el $\beta$ que minimice
+$$ \sum_{i\in V^{obs}}C(x_i;(\Phi\beta))+\lambda\beta^T\Delta^{-1}\beta $$
+donde $V^{obs}$ son los vértices observados, $C(\cdot,\cdot)$ es una
+función convexa que mide la pérdida de la predicción $(\Phi\beta)_u$ y
+$\lambda$ es el parámetro de ajuste.
+
+La optimización anterior es un tipo de estrategia de estimación
+penalizada por complejidad. El papel de la variable predictora
+desempeñada por las columnas de la matriz $\Phi$ (vectores propios del
+Kernel), y el de la variable respuesta que es el proceso $X$. La pérdida
+capturada por $C$ fomenta la bondad y ajuste del modelo muestras que el
+término $\lambda\beta^T\delta^{-1}\beta$ penaliza la complejidad
+excesiva, en el sentido de que los vectores propios con los valores
+propios pequeños son penalizados más severamente que aquellos con
+valores propios más grandes. El parámetro $\lambda$ controla la
+importancia de la penalización por la complejidad del modelo y
+normalmente se elige en función de los datos. Para ciertas situaciones,
+la solución al momento de minimizar tiene una forma analítica cerrada.
+Sin embargo, en general se utilizan métodos numéricos. Los detalles de
+la implementación de estos métodos dependen de la función $C$. En
+Kernlab, para el problema de regresión con variables de respuesta
+binaria, se implementa la función `ksvm`
+$$ C(x;h))[\max(0,1-(2x-1)h)]^2 $$ esta elección corresponde a lo que se
+conoce como una máquina de vectores de soporte margen suave de 2 normas.
+Volviendo al problema de predecir la función proteica de la red de
+interacciones de proteínas, se utiliza el núcleo laplaciano definido
+anteriormente como entrada para `ksvm` y se extraen los valores
+ajustados resultantes, que `ksvm` produce en forma de 0 o 1.
+
+```{r}
+m1.svm <- ksvm(K1, X, type="C-svc")
+m1.svm.fitted <- fitted(m1.svm)
+```
+
+Al comparar estos valores ajustados con la variable indicadora de la
+función proteica ICSC, se puede observar que esta regresión kernel
+produce una tasa de error del 11%, aproximadamente la mitad de la del
+modelo MRF.
+
+```{r}
+mean(as.numeric(m1.svm.fitted != V(ppi.CC.gc)$ICSC))
+```
+
+Además, el modelo predice con precisión la función ICSC de cuatro de las
+siete proteínas de interés.
+
+```{r}
+m1.svm.fitted[V(ppi.CC.gc)$name %in% new.icsc]
+```
+
+Si ahora se incorpora también información de motivos genéticos, usando
+el núcleo K2 en lugar de K1,
+
+```{r}
+m2.svm <- ksvm(K2, X, type="C-svc")
+```
+
+Se encuentra que la tasa de error general vuelve a disminuir en casi la
+mitad, alcanzando aproximadamente el 6%.
+
+```{r}
+m2.svm.fitted <- fitted(m2.svm)
+mean(as.numeric(m2.svm.fitted != V(ppi.CC.gc)$ICSC))
+```
+
+Aunque en este caso sólo dos de las siete proteínas de interés se
+predicen correctamente.
+
+```{r}
+m2.svm.fitted[V(ppi.CC.gc)$name %in% new.icsc]
+```
+
+## 8.5 Modelado y predicción de procesos dinámicos
+
+Como se señaló anteriormente, muchos procesos definidos en redes se
+consideran como procesos dinámicos. Los ejemplos incluyen la difusión
+del conocimiento (por ejemplo, cuando un rumor se difunde entre una
+población), la búsqueda de información (por ejemplo, cómo un motor de
+búsqueda formula una respuesta a una consulta), la propagación de
+enfermedades (por ejemplo, cuando un virus se propaga a través de una
+población de humanos o computadoras), y la sincronización del
+comportamiento (por ejemplo, cuando las neuronas se activan en el
+cerebro). Conceptualmente, se pueden pensar estos procesos como procesos
+de atributos nodales indexados en el tiempo $X(t) = (X_i(t))_{i \in V}$,
+donde $t$ varía de manera discreta o continua en un rango de tiempos.
+Comúnmente se adoptan perspectivas tanto deterministas como estocásticas
+para modelar tales procesos. Los modelos deterministas se basan en
+ecuaciones diferenciales y en diferencias, mientras que los modelos
+estocásticos se basan en procesos estocásticos indexados en el tiempo,
+generalmente procesos de Markov. Si bien en los últimos 15 a 20 años se
+ha realizado una cantidad sustancial de trabajo sobre la modelización
+matemática y probabilística de procesos dinámicos en un grafo, ha habido
+comparativamente mucho menos trabajo en las estadísticas. Como
+resultado, el tratamiento de este tema aquí tendrá un alcance igualmente
+limitado, siendo el objetivo simplemente echar un vistazo rápido al
+modelado y simulación de dichos procesos. Se ilustra dentro del contexto
+de una clase particular de proceso dinámico: los procesos epidémicos.
+
+### Un Ejemplo de Procesos epidémicos
+
+El término "epidemia" se refiere a un fenómeno que prevalece en exceso
+de lo que podría esperarse. Se utiliza más comúnmente en el contexto de
+enfermedades y su diseminación entre la población, pero a veces también
+se usa de manera más amplia en otros contextos, como para describir la
+propagación de un problema dentro de comunidades o la adopción de un
+producto comercial. El modelado de epidemias ha sido un área de gran
+interés entre los investigadores que trabajan en modelos de procesos
+dinámicos basados en redes.
+
+### Modelo tradicional epidémico
+
+Un modelo clásico epidémico tradicional, no relacionado con redes, de
+tiempo continuo se denomina "susceptibles infectados eliminados" (SIR),
+posiblemente el miembro más simple de esta clase: el llamado modelo
+epidemiológico general.
+
+Para trabajar con este modelo, se supone una población cerrada de $N+1$
+individuos, tales que en cualquier momento $t$ hay un número aleatorio
+$N_{S}(t)$ de elementos susceptibles a la infección, denominados
+susceptibles, $N_{I}(t)$ elementos son infectados, denominados
+infectados, y $N_{R}(t)$ elementos recuperados e inmunes o removidos de
+la población. Se empieza con un infectado y $N$ susceptibles, es decir,
+$N_{I}(0) = 1$ y $N_{S}(0) = N$, con $I$ y $S$ como el número de
+susceptibles e infectados respectivamente. Esto asume que la tripleta
+$(N_{S}(t), N_{I}(t), N_{R}(t))$ de acuerdo con sus probabilidades
+infinitesimales de transición son:
+
+```{=tex}
+\begin{aligned}
+ \mathbb{P}\left(N_S(t+\delta t)=s-1, N_I(t+\delta t)=i+1 \mid N_S(t)=s, N_I(t)=i\right) &\approx \beta s i \delta t \\
+ \mathbb{P}\left(N_S(t+\delta t)=s, N_I(t+\delta t)=i-1 \mid N_S(t)=s, N_I(t)=i\right) &\approx \gamma i \delta t \\
+ \mathrm{P}\left(N_S(t+\delta t)=s, N_I(t+\delta t)=i \mid N_S(t)=s, N_I(t)=i\right) &\approx 1-(\beta s+\gamma) i \delta t, \\
+\end{aligned}
+```
+Donde $\delta t$ se refiere a un t infinitesimal y no se escribe
+$N_{R}(t)$ debido a la restricción $N_{S}(t) + N_{I}(t) + N_{R}(t) = 1$.
+El modelo anterior establece que, en cualquier momento $t$, un nuevo
+infectado surgirá de entre los susceptibles (debido al contacto y la
+infección con uno de los infectados) con una probabilidad instantánea
+proporcional a la multiplicación del número de susceptibles $S$ por el
+número de infectados $I$. De manera similar, los infectados con una
+probabilidad infinitesimal proporcional a $I$. Estas probabilidades
+están escaladas por los parámetros $\beta$ y $\gamma$, generalmente
+denominados tasas de infección y recuperación, respectivamente.
+
+La forma del producto para la probabilidad con la que surgen los
+infectados corresponde a una suposición de ''mezcla homogénea'' entre
+los miembros de la población, que afirma que la población es homogénea y
+bien mezclada, en el sentido de que cualquier par de miembros tiene la
+misma probabilidad de interactuar entre sí. Un planteamiento equivalente
+del modelo establece que, dados $S$ susceptibles e $I$ infectados en el
+tiempo $t$, el proceso permanece en el estado $(S,I)$ durante un tiempo
+distribuido como una variable aleatoria exponencial, con tasa
+$(\beta S + \gamma)I$. Entonces se produce una transición, que será al
+estado $(S-1,I+1)$ con probabilidad $\frac{\beta S}{(\beta S +\gamma)I}$
+o al estado $(S, I-1)$ con probabilidad
+$\frac{\gamma I}{(\beta S +\gamma)I}$.
+
+La siguiente figura muestra una caracterización esquemática del
+comportamiento típico del proceso SIR estocástico bajo simulación.
+Comenzando con una población compuesta casi en su totalidad por
+susceptibles y solo unos pocos infectados, se observa un aumento
+exponencial inicial en el número de infectados y una disminución
+correspondiente en el número de susceptibles. A este período inicial le
+sigue un pico en el número de infectados. Después de este pico, el
+número de infectados decae exponencialmente, a medida que el número de
+susceptibles va disminuyendo y los infectados se van recuperando.
+
+Desafortunadamente, a pesar de que el modelo SIR epidémico general
+captura las características generales de una epidemia, el supuesto de
+mezcla homogénea es muy simple para modelar una epidemia con muchas
+enfermedades, por lo tanto, en muchas ocasiones no es adecuado para
+modelarla. Un elemento clave que falta en estos modelos es la estructura
+natural de las poblaciones. Tal estructura podría derivar de la
+proximidad espacial, del contacto social o de la demografía. Los modelos
+más sofisticados suponen patrones de contacto que tienen en cuenta estas
+estructuras dentro de la población de interés. Y frecuentemente es
+conveniente representar estos patrones en forma de grafo.
+
+<center>![Esquema caracterización de un proceso SIR mostrando cómo las
+proporciones relativas de susceptibles (verde), infecciosas (rojo) y
+eliminados (amarillo) varían con el
+tiempo](Imagen1.jpg){width="500"}</center>
+
+### Modelado de epidemias basado en redes
+
+Sea $G$ una red que describe la estructura de contacto de $N_v$
+elementos en una población. Supóngase que en el instante $t=0$, un nodo
+está infectado y el resto son susceptibles. Los vértices infectados
+permanecen infectados durante un tiempo distribuido exponencialmente,
+con una tasa $\gamma$, después del cual se consideran recuperados.
+Durante el período de infección, un vértice tiene contacto de manera
+independiente con cada vecino, con una probabilidad $\beta$, donde un
+contacto automáticamente resulta en infección si el otro individuo es
+susceptible. Se define $X_i(t)=0,1,2$ dependiendo si el vértice $i$ es
+susceptible, infectado o es removido en el tiempo $t$, respectivamente.
+
+Sea $X(t)=(X_i(t))_{i \in V}$ el resultado de un proceso en tiempo
+continuo en el grafo de red $G$. Se denotará por $x$ el estado del
+proceso en un momento dado $t$, es decir, $(0,1,2)$. Los cambios
+sucesivos de estados, digamos de $x$ a $x'$, implicarán un cambio en uno
+y solo un elemento a la vez. Supóngase que $x$ a $x'$ difieren en el
+i-ésimo elemento. Entonces se puede demostrar que el modelo que se
+describe es equivalente a especificar que:
+
+$\mathbb{P}\left(\mathbf{X}(t+\delta t)=\mathbf{x}^{\prime} \mid \mathbf{X}(t)=\mathbf{x}\right) \approx \begin{cases}\beta M_i(\mathbf{x}) \delta t, & \text { if } x_i=0 \text { and } x_i^{\prime}=1, \\ \gamma \delta t, & \text { if } x_i=1 \text { and } x_i^{\prime}=2, \\ 1-\left[\beta M_i(\mathbf{x})+\gamma\right] \delta t, & \text { if } x_i=2 \text { and } x_i^{\prime}=2,\end{cases}$
+
+Donde se define $M_i(x)$ como el número de vecinos $j \in \eta_i$ para
+el cual $x_j = 1$, es decir, el número de vecinos de $i$ infectados en
+el momento $t$. El proceso SIR se sigue definiendo de la misma manera
+con los procesos $(N_{S}(t), N_{I}(t), N_{R}(t))$, contando con el
+número de vértices susceptibles, infectados y eliminados en el tiempo
+$t$. Al observar las características de los procesos, pueden verse
+afectados por las características del grafo de la red $G$. La simulación
+se puede utilizar para confirmar esto. Se comienza generando ejemplos de
+tres grafos aleatorios diferentes presentados anteriormente.
+
+```{r}
+set.seed(42)
+gl <- list()
+gl$ba <- sample_pa(250, m=5, directed=FALSE)
+gl$er <- sample_gnm(250, 1250)
+gl$ws <- sample_smallworld(1, 250, 5, 0.01)
+```
+
+Los parámetros han sido elegidos de manera que garanticen grafos con el
+mismo número de vértices y aproximadamente el mismo grado promedio, ya
+que estas son características básicas que se espera que afecten la
+progresión de una epidemia. Así, se establece una tasa de infección en
+$\beta=0.5$ y una tasa de recuperación en $\gamma=120$.
+
+```{r}
+beta <- 0.5
+gamma <- 1
+
+```
+
+Se utiliza la función Sir de igraph para simular epidemias en cada red.
+
+```{r}
+ntrials <- 100
+sim <- lapply(gl, sir, beta=beta, gamma=gamma,
+              no.sim=ntrials)
+```
+
+El resultado de cada simulación es un objeto SIR que contiene
+información sobre los momentos en que ocurrieron los cambios de estado y
+los valores de los procesos $(N_{S}(t), N_{I}(t), N_{R}(t))$ en esos
+momentos. Los resultados de dibujar el número de infectados $N_{I}(t)$
+para cada una de las tres redes aparecen a continuación.
+
+```{r, fig.cap= "Fig. 8.6 Realizaciones del número de infecciosos NI (t) para el proceso SIR basado en red simulado en un grafo aleatorio Erdös-Rényi (azul), un grafo aleatorio Barabási-Albert (amarillo) y un grafo aleatorio Watts-Strogatz 'small-world' (rojo). Las curvas más oscuras indican la mediana (sólida) y los percentiles 10 y 90 (punteadas), sobre un total de 100 epidemias (mostradas en las curvas claras). Las tres funciones de mediana se comparan en el gráfico inferior derecho. "}
+
+x.max <- max(sapply(sapply(sim, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim, function(x)
+  median(x)[["NI"]]), max, na.rm=TRUE))
+
+par(mfrow = c(2,2))
+plot(sim$er)
+plot(sim$ba, color="palegoldenrod",
+     median_color="gold", quantile_color="gold")
+plot(sim$ws, color="pink", median_color="red",
+     quantile_color="red")
+plot(time_bins(sim$er), median(sim$er)[["NI"]],
+     type="l", lwd=2, col="blue", xlim=c(0, x.max),
+     ylim=c(0, y.max), xlab="Time",
+     ylab=expression(N[I](t)))
+lines(time_bins(sim$ba), median(sim$ba)[["NI"]],
+      lwd=2, col="gold")
+lines(time_bins(sim$ws), median(sim$ws)[["NI"]],
+      lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),
+       col=c("blue", "gold", "red"), lty=1)
+
+```
+
+Para las tres topologías de red se observa un aumento y una disminución
+exponencial que es cualitativamente similar a un proceso epidémico SIR
+tradicional. Sin embargo, está claro que también difieren en efectos
+importantes, impulsados por diferencias en la topología de la red. Por
+ejemplo, la epidemia alcanza su punto máximo antes en la red del mundo
+pequeño que en la red Barabasi-Albert que en la de Erdos-Renyi, pero las
+dos últimas producen redes sustancialmente con menos infectados que la
+primera. Estas diferencias se pueden ver mejor trazando la mediana de
+las curvas $N_{I}(t)$ para cada grafo en un gráfico.
