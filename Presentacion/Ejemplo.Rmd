@@ -1,0 +1,454 @@
+---
+title: "Ejemplo predicción de procesos en redes"
+author: 
+  - Alejandro Urrego Lopez
+  - Bryan Camilo Riveros Guarnizo
+  - Cesar Augusto Prieto Sarmiento
+date: "2024-05-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Red de Comunicación de Departamentos de Salud Locales
+
+### Descripción
+
+Este conjunto de datos contiene la red de liderazgo de los Departamentos de Salud Locales (LHD) de los Estados Unidos, para su uso con el texto de Sage, "Introducción a la Modelización de Grafos Aleatorios Exponenciales" de Jenine K. Harris.
+
+### Formato
+Un objeto de red con 1,283 vértices y 2,708 aristas.
+
+### Detalles
+Los datos incluyen un objeto de red denominado 'lhds' que consiste en 1,283 departamentos de salud locales y los enlaces de comunicación entre sus líderes. La red es no dirigida y las conexiones están presentes o ausentes (no ponderadas). Los atributos de los miembros de la red incluyen: el estado en el que se encuentran, si realizan programas de detección de VIH o programas de nutrición, cuántas personas viven en la jurisdicción del departamento, y el número de años de experiencia que tiene el líder.
+
+## 1 Tratamiento de datos y gráfico de la componente gigante
+
+```{r}
+#install.packages("devtools")
+#devtools::install_github("DougLuke/UserNetR")
+suppressMessages(suppressWarnings(library(UserNetR)))
+suppressMessages(suppressWarnings(library(network)))
+suppressMessages(suppressWarnings(library(igraph)))
+suppressMessages(suppressWarnings(library(intergraph)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+suppressMessages(suppressWarnings(library(dplyr)))
+```
+```{r}
+# importación de la red
+data("lhds")
+# objeto tipo network
+class(lhds)
+# convertir a objeto tipo igraph
+lhds<-asIgraph(lhds)
+# resumen del grafo
+summary(lhds)
+```
+```{r}
+# Cambiar los valores NA en "NA" para hacer la binarización y que no se presenten problemas
+#V(lhds)$hivscreen[is.na(V(lhds)$hivscreen)] <- "NA"
+V(lhds)$nutrition[is.na(V(lhds)$nutrition)] <- "NA"
+
+# eliminar los vertices que tienen NA en el atributo de interse
+lhds<-delete_vertices(lhds,v=(which(is.na(V(lhds)$hivscreen))))
+```
+
+```{r}
+# Binarizar los atributos nodales
+hivscreen.numeric<-ifelse(V(lhds)$hivscreen == "Y", 1, 0)
+nutrition.numeric<-ifelse(V(lhds)$nutrition == "Y", 1, 0)
+V(lhds)$hivscreen.numeric<-hivscreen.numeric
+V(lhds)$nutrition.numeric<-nutrition.numeric
+```
+
+```{r}
+
+# Calcular la asortatividad nominal
+hivscreen_factor <- as.factor(V(lhds)$hivscreen)
+assortativity_nominal(lhds, as.numeric(as.factor(V(lhds)$hivscreen)), directed = FALSE)
+
+```
+
+```{r}
+# matriz de aristas
+list<-as.data.frame(as_edgelist(lhds))
+
+# Extracción del atributo 'hivscreen.numeric' de los vértices del grafo 'lhds' y cálculo de su media
+hiv <- V(lhds)$hivscreen.numeric
+mean(hiv)
+
+# Creación de un índice secuencial que tiene la misma longitud que el vector 'hiv'
+index <- seq(1, length(hiv))
+
+# Creación de un dataframe combinando 'hiv' e 'index'
+hiv <- as.data.frame(cbind(hiv, index))
+
+# Unión de 'list' con el dataframe 'hiv' dos veces, una por cada columna 'V1' y 'V2'
+list <- list %>% left_join(hiv, by = c('V1' = 'index')) %>% left_join(hiv, by = c('V2' = 'index'))
+
+# Comparación de los valores de 'hiv' para las uniones realizadas y cálculo de la media del resultado booleano
+boolean <- list$hiv.x == list$hiv.y
+mean(boolean)
+
+# Inicialización de un vector para almacenar los colores de las aristas
+color.edge <- NULL
+
+# Asignación de colores a las aristas según la comparación booleana anterior
+for (i in 1:length(boolean)) {
+  if (boolean[i]) {
+    color.edge[i] <- adjustcolor("lightgreen", 0.4)
+  } else {
+    color.edge[i] <- adjustcolor("gray", 0.6)
+  }
+}
+
+# Creación de un layout circular para el grafo
+set.seed(42)
+l <- layout_in_circle(lhds)
+
+# Graficación del grafo 'lhds' con los colores de aristas definidos y sin etiquetas en los vértices
+plot(lhds, vertex.color = adjustcolor("gray", 0.001), vertex.size = 1, vertex.label = NA, layout = l, edge.color = color.edge)
+```
+
+```{r}
+# grafo de la componente gigante 
+clu <- components(lhds)
+lhds.gc <- induced_subgraph(lhds, 
+                              clu$membership==which.max(clu$csize))
+```
+
+
+
+### 2 Método del vecino más cercano 
+
+```{r}
+# promedio
+nn.ave <- sapply(V(lhds.gc),
+                 function(x) mean(V(lhds.gc)[.nei(x)]$hivscreen.numeric))
+# predicción
+nn.pred <- as.numeric(nn.ave > 0.5)
+# cálculo de la tasa de error
+print(mean(as.numeric(nn.pred != V(lhds.gc)$hivscreen.numeric)))
+```
+## Campos aleatorios de Markov
+
+```{r}
+suppressMessages(suppressWarnings(library(ngspatial)))
+
+# se toma el atributos nodal que se desea predecir
+X <- V(lhds.gc)$hivscreen.numeric
+# matriz de adjacencia
+A <- as_adjacency_matrix(lhds.gc, sparse=FALSE)
+
+# se toman caracteristica de la red asociadas con cada nodo
+nutrition<- V(lhds.gc)$nutrition.numeric # vectores binarios
+# se asigna la correspondiente forma a un modelo mrf que tiene atributos nodales
+formula <- X ~ nutrition
+formula1 <- X~1
+```
+```{r}
+# modelo autologistico sin atributos nodales
+m1.mrf <- autologistic(formula1, A=A,
+                       control=list(confint="none"))
+# estimaciones 
+m1.mrf$coefficients
+# vector booleano que marca verdadero si se supera el umbral
+mrf1.pred <- as.numeric((m1.mrf$fitted.values > 0.5))
+# cálculo de la tasa de error
+mean(as.numeric(mrf1.pred != V(lhds.gc)$hivscreen.numeric))
+```
+
+```{r}
+#modelo autologistico con atributos nodales
+m2.mrf <- autologistic(X~nutrition, A=A,
+                       control=list(confint="none"))
+# estimaciones 
+m2.mrf$coefficients
+# vector booleano que marca verdadero si se supera el umbral
+# cálculo de la tasa de error
+mrf.pred2 <- as.numeric((m2.mrf$fitted.values > 0.5))
+mean(as.numeric(mrf.pred2 != V(lhds.gc)$hivscreen.numeric))
+```
+
+
+## 3 Regresión Kernel 
+
+```{r}
+suppressMessages(suppressWarnings(library(kernlab)))
+# matriz laplaciana
+L <- as.matrix(laplacian_matrix(lhds.gc))
+# descomposicion propia de la matriz laplaciana
+e.L <- eigen(L)
+# numero de vertices en la componente gigante
+nv <- vcount(lhds.gc)
+# como es conectada unicamente el ultimo valor es cero
+e.vals <- e.L$values[1:(nv-1)]
+# se hace la inversa generalizada 
+f.e.vals <- c((e.vals)^(-1), 0)
+# ultimo valor propio
+e.vals[nv]
+```
+
+```{r}
+# se costruye el kernel
+K1.tmp <- e.L$vectors %*% diag(f.e.vals) %*%t(e.L$vectors)
+K1 <- as.kernelMatrix(K1.tmp)
+# se genera otro kernel con los motifs
+K.nutrition <- V(lhds.gc)$nutrition.numeric %*% t(V(lhds.gc)$nutrition.numeric)
+# se suman ambos kernel para crear uno solo que tenga en cuenta tanto los motif como la matriz L
+K2.tmp <- 0.5 * K1.tmp + 0.5 * K.nutrition
+K2 <- as.kernelMatrix(K2.tmp)
+
+# prop=True para obtener las probabilidades de interaccion 
+m1.svm <- ksvm(K1, X,prob.model=TRUE)
+# valores ajustados
+m1.svm.fitted <- fitted(m1.svm)
+# tasa de error 
+mean(as.numeric((m1.svm.fitted>0.5) != V(lhds.gc)$hivscreen.numeric))
+# tasa de error 
+m22.svm <- ksvm(K2, X,prob.model=TRUE)
+m22.svm.fitted <- fitted(m22.svm)
+mean(as.numeric((m22.svm.fitted>0.5) != V(lhds.gc)$hivscreen.numeric))
+
+```
+## 4 Validación Cruzada
+
+```{r}
+hivscreen.numeric.gc<-V(lhds.gc)$hivscreen.numeric
+folds <- 5
+n <- vcount(lhds.gc)
+set.seed(42)
+s<-sample(x = 1:L, size = n, replace = T)
+
+
+set.seed(123)
+IP1 <- vector(mode = "list",folds)
+IP2 <- vector(mode = "list", folds)
+IP3 <- vector(mode = "list", folds)
+IP4 <- vector(mode = "list", folds)
+IP5 <- vector(mode = "list",folds)
+for (l in 1:folds) {
+  
+  V(lhds.gc)$hivscreen.numeric[which(s == l)] = 0
+  
+  nn.ave <- sapply(V(lhds.gc), function(x) mean(V(lhds.gc)[.nei(x)]$hivscreen.numeric))
+  
+  IP1[[l]] <- nn.ave[which(s == l)]
+  
+  X <- V(lhds.gc)$hivscreen.numeric
+  
+  A <- as_adjacency_matrix(lhds.gc, sparse = FALSE)
+  
+  nutrition <- V(lhds.gc)$nutrition.numeric # vectores binarios
+  
+  formula <- X ~ nutrition
+  formula1 <- X ~ 1
+  
+  m1.mrf <- autologistic(formula1, A = A, control = list(confint = "none"))
+  IP2[[l]] <- m1.mrf$fitted.values[which(s == l)]
+  
+  m2.mrf <- autologistic(X ~ nutrition, A = A, control = list(confint = "none"))
+  IP3[[l]] <- m2.mrf$fitted.values[which(s == l)]
+  
+  L <- as.matrix(laplacian_matrix(lhds.gc))
+  
+  e.L <- eigen(L)
+  
+  nv <- vcount(lhds.gc)
+  
+  e.vals <- e.L$values[1:(nv - 1)]
+  
+  f.e.vals <- c((e.vals)^(-1), 0)
+  
+  K1.tmp <- e.L$vectors %*% diag(f.e.vals) %*% t(e.L$vectors)
+  K1 <- as.kernelMatrix(K1.tmp)
+  
+  K.nutrition <- V(lhds.gc)$nutrition.numeric %*% t(V(lhds.gc)$nutrition.numeric)
+  
+  K2.tmp <- 0.5 * K1.tmp + 0.5 * K.nutrition
+  K2 <- as.kernelMatrix(K2.tmp)
+  
+  m1.svm <- ksvm(K1, X, prob.model = TRUE)
+  IP4[[l]] <- fitted(m1.svm)[which(s == l)]
+  
+  m2.svm <- ksvm(K2, X, prob.model = TRUE)
+  IP5[[l]] <- fitted(m2.svm)[which(s == l)]
+  
+  V(lhds.gc)$hivscreen.numeric = hivscreen.numeric.gc
+}
+```
+
+### curvas ROC y AUCs
+
+```{r,}
+# Modelo 1: curvas ROC y AUCs
+IP <- IP1
+aucs <- NULL
+plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos",
+     main = 'Método del vecino más cercano')
+abline(a = 0, b = 1, col = "gray", lwd = 2)
+for (l in 1:folds) {
+  # datos de prueba
+  y_test <-  hivscreen.numeric.gc[which(s == l)]
+  # rendimiento
+  pred <- ROCR::prediction(predictions = IP[[l]], labels = y_test)
+  perf <- ROCR::performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+  # ROC
+  lines(x = perf@x.values[[1]], y = perf@y.values[[1]], type = "l", col = 2)
+  # AUC
+  perf <- ROCR::performance(prediction.obj = pred, measure = "auc")
+  aucs[l] <- perf@y.values[[1]]
+}
+text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1.5)
+# Modelo 2: curvas ROC y AUCs
+IP <- IP2
+aucs <- NULL
+plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos",
+     main = "MRF 2")
+abline(a = 0, b = 1, col = "gray", lwd = 2)
+for (l in 1:folds) {
+  # datos de prueba
+  y_test <- hivscreen.numeric.gc[which(s == l)]
+  # rendimiento
+  pred <- ROCR::prediction(predictions = IP[[l]], labels = y_test)
+  perf <- ROCR::performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+  # ROC
+  lines(x = perf@x.values[[1]], y = perf@y.values[[1]], type = "l", col = 4)
+  # AUC
+  perf <- ROCR::performance(prediction.obj = pred, measure = "auc")
+  aucs[l] <- perf@y.values[[1]]
+}
+text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1.5)
+
+IP <- IP3
+aucs <- NULL
+plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos",
+     main = "MRF 2")
+abline(a = 0, b = 1, col = "gray", lwd = 2)
+for (l in 1:folds) {
+  # datos de prueba
+  y_test <- hivscreen.numeric.gc[which(s == l)]
+  # rendimiento
+  pred <- ROCR::prediction(predictions = IP[[l]], labels = y_test)
+  perf <- ROCR::performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+  # ROC
+  lines(x = perf@x.values[[1]], y = perf@y.values[[1]], type = "l", col = 4)
+  # AUC
+  perf <- ROCR::performance(prediction.obj = pred, measure = "auc")
+  aucs[l] <- perf@y.values[[1]]
+}
+text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1.5)
+
+IP <- IP4
+aucs <- NULL
+plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos", 
+     main='Kernel 1')
+abline(a = 0, b = 1, col = "gray", lwd = 2)
+for (l in 1:folds) {
+  # datos de prueba
+  y_test <- hivscreen.numeric.gc[which(s == l)]
+  # rendimiento
+  pred <- ROCR::prediction(predictions = IP[[l]], labels = y_test)
+  perf <- ROCR::performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+  # ROC
+  lines(x = perf@x.values[[1]], y = perf@y.values[[1]], type = "l", col = 4)
+  # AUC
+  perf <- ROCR::performance(prediction.obj = pred, measure = "auc")
+  aucs[l] <- perf@y.values[[1]]
+}
+text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1.5)
+
+IP <- IP5
+aucs <- NULL
+plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos", 
+     main = "Kernel 2")
+abline(a = 0, b = 1, col = "gray", lwd = 2)
+for (l in 1:folds) {
+  # datos de prueba
+  y_test <- hivscreen.numeric.gc[which(s == l)]
+  # rendimiento
+  pred <- ROCR::prediction(predictions = IP[[l]], labels = y_test)
+  perf <- ROCR::performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+  # ROC
+  lines(x = perf@x.values[[1]], y = perf@y.values[[1]], type = "l", col = 4)
+  # AUC
+  perf <- ROCR::performance(prediction.obj = pred, measure = "auc")
+  aucs[l] <- perf@y.values[[1]]
+}
+text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1.5)
+
+```
+
+
+## 5 Predicción
+```{r}
+# conociendo el modelo a elegir se vuelve a ajustar sin eliminar los nodos
+data("lhds")
+class(lhds)
+lhds<-asIgraph(lhds)
+summary(lhds)
+# mejor threshold 
+pred <- ROCR::prediction(predictions =m22.svm.fitted , labels = V(lhds.gc)$hivscreen.numeric)
+cost_perf = ROCR::performance(pred, "cost") 
+t<-pred@cutoffs[[1]][which.min(cost_perf@y.values[[1]])]
+
+# Cambiar los valores NA en "NA" para hacer la binarizacion y que no se presenten problemas
+V(lhds)$hivscreen[is.na(V(lhds)$hivscreen)] <- "NA"
+V(lhds)$nutrition[is.na(V(lhds)$nutrition)] <- "NA"
+
+hivscreen.numeric<-ifelse(V(lhds)$hivscreen == "Y", 1, 0)
+nutrition.numeric<-ifelse(V(lhds)$nutrition == "Y", 1, 0)
+
+V(lhds)$hivscreen.numeric<-hivscreen.numeric
+V(lhds)$nutrition.numeric<-nutrition.numeric
+clu <- components(lhds)
+# grafo de la componente gigante 
+lhds.gc <- induced_subgraph(lhds, 
+                            clu$membership==which.max(clu$csize))
+
+
+
+# se toma el atributos nodal que se desea predecir
+X <- V(lhds.gc)$hivscreen.numeric
+# matriz de adjacencia
+A <- as_adjacency_matrix(lhds.gc, sparse=FALSE)
+
+# se toman caracteristica de la red asociadas con cada nodo
+nutrition<- V(lhds.gc)$nutrition.numeric # vectores binarios
+# se asigna la correspondiente forma a un modelo mrf que tiene atributos nodales
+formula <- X ~ nutrition
+formula1 <- X~1
+L <- as.matrix(laplacian_matrix(lhds.gc))
+# descomposicion propia de la matriz laplaciana
+e.L <- eigen(L)
+# numero de vertices en la componente gigante
+nv <- vcount(lhds.gc)
+# como es conectada unicamente el ultimo valor es cero
+e.vals <- e.L$values[1:(nv-1)]
+# se hace la inversa generalizada 
+f.e.vals <- c((e.vals)^(-1), 0)
+# ultimo valor propio
+e.vals[nv]
+# se costruye el kernel
+K1.tmp <- e.L$vectors %*% diag(f.e.vals) %*%t(e.L$vectors)
+K1 <- as.kernelMatrix(K1.tmp)
+# se genera otro kernel con los motifs
+K.nutrition <- V(lhds.gc)$nutrition.numeric %*% t(V(lhds.gc)$nutrition.numeric)
+# se suman ambos kernel para crear uno solo que tenga en cuenta tanto los motif como la matriz L
+K2.tmp <- 0.5 * K1.tmp + 0.5 * K.nutrition
+K2 <- as.kernelMatrix(K2.tmp)
+# indica el modelo, se utiliza C-svc porque es clasificacion y el tipo de minimizacion que se hace coincida con 
+# la propuesta 
+# tasa de error 
+m2.svm <- ksvm(K2, X,prob.model=TRUE)
+m2.svm.fitted <- as.numeric(fitted(m2.svm)>0.5)
+summary(lhds.gc)
+V(lhds.gc)$vertex.names[which(V(lhds.gc)$hivscreen=='NA')]
+as.numeric(m2.svm.fitted[which(V(lhds.gc)$hivscreen=='NA')])
+m2.svm.fitted <- as.numeric(fitted(m2.svm)>t)
+as.numeric(m2.svm.fitted[which(V(lhds.gc)$hivscreen=='NA')])
+```
+
+
