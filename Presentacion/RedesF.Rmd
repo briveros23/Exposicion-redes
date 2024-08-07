@@ -381,7 +381,7 @@ summary(a2.mrf)
 
 Los modelos probabilísticos que se acaban de utilizar se pueden complementar con algún método que **relacione los vértices y atributos mediante algún tipo de función**. Para la construcción más explícita, una buena idea es un enfoque basado en la regresión con el grafo. Sin embargo, los métodos clásicos de regresión, como los mínimos cuadrados, se utilizan para relacionar una variable respuesta y unas variables explicativas sobre un espacio euclidiano.
 
-Así, una solución a este problema es aplicando **métodos kernel** que han demostrado ser útiles para extender el paradigma de regresión clásico a diversos entornos con datos no tradicionales. En el nivel más básico, estos métodos consisten en:
+Así, una solución a este problema es aplicando **métodos kernel** que han demostrado ser útiles para extender el paradigma de **regresión clásico** a diversos entornos con datos no tradicionales. En el nivel más básico, estos métodos consisten en:
 
 - Una noción generalizada de variables predictivas (codificadas en el llamado kernel o núcleo).
 - Una regresión con una variable respuesta sobre los predictores generalizados utilizando una regresión penalizada.
@@ -477,7 +477,7 @@ La estimacion en el punto $t$, siguiendo la idea del caso univariado es
 \[\hat{m}(t)=\hat{m}(t_1,\dots,t_p)=\beta_0\]
 
 ### 4.2 Diseño de kernels en grafos
-El diseño del kernel en grafos debe describir la similitud entre los vértices en el grafo \( G \), así la función Kernel \( K \)  
+El diseño del kernel en grafos debe describir la **similitud** entre los vértices en el grafo \( G \), así la función Kernel \( K \)  
 
 - \[ K: V \times V \to \mathbb{R} \] 
 
@@ -486,7 +486,7 @@ El diseño del kernel en grafos debe describir la similitud entre los vértices 
 \mathbf{K}^{(m)} = [K(i_j, i_{j'})]
 \]
 
-es simétrica y semidefinida positiva.
+es **simétrica** y **semidefinida positiva.**
 
 Aunque la proximidad de los vértices está codificada en la matriz de adyacencia , es más común ver el grafo laplaciano *L* usado en la regresión kernel.
 
@@ -749,4 +749,8 @@ legend("topright", c("ER", "BA", "WS"),
 
 Las realizaciones del número de infectados $N_{I}(t)$ para el proceso SIR basado en una red simulada en un grafo aleatorio de Erdos-Renyi (azul), grafo aleatorio de Barabasi-Albert (amarillo) y un grafo aleatorio mundo pequeño de Watts-Strogatz (rojo).
 
+## Referencias:
 
+![](Referencia 1.JPEG)
+
+![](Referencia 2.JPEG)
