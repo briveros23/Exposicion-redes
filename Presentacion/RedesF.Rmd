@@ -556,7 +556,7 @@ $$ f(\gamma) = \begin{cases}
 0 & \text{en otro caso.}
 \end{cases} $$
 
-### 4.3 Regresión del kernel en grafos.
+### 4.3 Regresión kernel en grafos.
 
 Sea $G = (V, E)$ un grafo y $X = (X_1, \dots, X_{N_V})$ un proceso sobre un atributo nodal y sea $V^{obs}$ los nodos los cuales se conoce su atributo . Desde la perspectiva de la regresión Kernel, el objetivo es aprender de los datos sobre una función apropiada $\hat{h} \in \mathbb{R}^{N_V}$, que mapea de $V$ a $\mathbb{R}$, y que describa bien la manera en que los atributos varían entre los vértices. Más precisamente, dado un Kernel $K = \phi \Delta \phi$, se busca encontrar una elección óptima de $h$ dentro de la clase:
 
