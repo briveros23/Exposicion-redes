@@ -1,5 +1,5 @@
 ---
-title: "Modelado y predicción de procesos en redes"
+title: "El modelado y la predicción de procesos en redes"
 author: 
   - Alejandro Urrego Lopez
   - Bryan Camilo Riveros Guarnizo
@@ -364,6 +364,11 @@ hist(x = a1.mrf, freq = FALSE, col = "gray95", border = "gray95",
      main = paste('ppp =', mean(a1.mrf >= assortativity(ppi.CC.gc, X + 1, directed = FALSE))))
 
 abline(v = mean( assortativity(ppi.CC.gc, X + 1, directed = FALSE)), col = 2, lty = 3)
+# Cuantil 0.5
+abline(v = quantile(a1.mrf, 0.05), col = "blue", lty = 2)
+
+# Cuantil 0.95
+abline(v = quantile(a1.mrf, 0.95), col = "blue", lty = 2)
 ```
 
 ```{r}
@@ -376,6 +381,11 @@ hist(x = a2.mrf, freq = FALSE, col = "gray95", border = "gray95",
      main = paste('ppp =', mean(a2.mrf >= assortativity(ppi.CC.gc, X + 1, directed = FALSE))))
 
 abline(v = mean( assortativity(ppi.CC.gc, X + 1, directed = FALSE)), col = 2, lty = 3)
+# Cuantil 0.5
+abline(v = quantile(a2.mrf, 0.05), col = "blue", lty = 2)
+
+# Cuantil 0.95
+abline(v = quantile(a2.mrf, 0.95), col = "blue", lty = 2)
 ```
 
 ```{r}
