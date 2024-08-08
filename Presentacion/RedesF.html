@@ -364,23 +364,32 @@ redes</h1>
 
 <div id="introducción" class="section level2">
 <h2>1 Introducción</h2>
-<p>En ocasiones, en las redes es de mayor interés los <strong>atributos
-nodales</strong>, en lugar de las relaciones. Así, es razonable pensar
-que estos atributos <strong>se ven influenciados por las conexiones en
-la red</strong>. Por ejemplo:</p>
+<p>En el estudio de redes, a menudo se presta mayor atención a los
+<strong>atributos nodales</strong> que a las relaciones entre los nodos.
+Esto se debe a que los atributos de los nodos, tales como
+<strong>comportamientos, creencias o estados de salud</strong>, pueden
+ser fuertemente influenciados por las conexiones y las
+<strong>interacciones dentro de la red</strong>. Para ilustrar esto,
+consideremos los siguientes ejemplos:</p>
 <ul>
-<li>Los comportamientos y creencias de las personas pueden verse
-influenciados por sus interacciones.</li>
-<li>Una persona que suele tratar con enfermos puede tender a enfermarse
-más frecuentemente.</li>
+<li><strong>Influencia de las interacciones en comportamientos y
+creencias</strong></li>
+<li><strong>Riesgo de contagio en contextos de salud</strong></li>
 </ul>
-<p>Estos <strong>atributos</strong> asociados con tales fenómenos pueden
-ser tratados como <strong>procesos estocásticos</strong> definidos en la
-red como una colección de variables aleatorias <span class="math inline">\(\vec{X}\)</span> que están indexadas por el grafo
-<span class="math inline">\(G = (V, E)\)</span>, es decir:</p>
+<p>Estos ejemplos muestran cómo los atributos asociados a los nodos en
+una red pueden ser tratados como <strong>procesos estocásticos</strong>.
+Un proceso estocástico es una <strong>colección de variables
+aleatorias</strong> que representan la evolución de un sistema a lo
+largo del tiempo o en un espacio determinado. En el contexto de redes,
+podemos definir estos procesos estocásticos sobre un grafo <span class="math inline">\(G = (V, E)\)</span>, donde <span class="math inline">\(V\)</span> es el conjunto de nodos y <span class="math inline">\(E\)</span> es el conjunto de aristas. Las
+variables aleatorias <span class="math inline">\(\vec{X}\)</span> están
+indexadas por los nodos del grafo, es decir:</p>
 <ul>
-<li><span class="math inline">\(\{X_i\}\)</span> para <span class="math inline">\(i \in V\)</span>.</li>
-<li><span class="math inline">\(\{X_i(t)\}\)</span>, con <span class="math inline">\(t\)</span> variando en el tiempo.</li>
+<li><span class="math inline">\(\left\{X_i\right\}\)</span> para <span class="math inline">\(i \in V\)</span>, representando un <strong>proceso
+estático</strong>.</li>
+<li><span class="math inline">\(\left\{X_i(t)\right\}\)</span>, con
+<span class="math inline">\(t\)</span> variando en el tiempo,
+representando un <strong>proceso dinámico</strong>.</li>
 </ul>
 <p>A <span class="math inline">\(\{X_i\}\)</span> se le conoce como un
 <strong>proceso estático</strong> y a <span class="math inline">\(\{X_i(t)\}\)</span> como un <strong>proceso
@@ -390,34 +399,77 @@ de interés</strong> y si el nodo no presenta el atributo de interés.</p>
 </div>
 <div id="método-del-vecino-más-cercano" class="section level2">
 <h2>2 Método del vecino más cercano</h2>
-<p>La <strong>predicción del vecino más cercano</strong> consiste en
-considerar una <strong>colección de atributos nodales</strong> <span class="math inline">\(\{X_i\}\)</span> que <strong>no dependen del
-tiempo</strong>, y hacer predicciones locales para un vértice <span class="math inline">\(i \in V\)</span> encontrando el <strong>promedio
-del vecino más cercano</strong>:</p>
+<p>El método del vecino más cercano es una técnica simple pero efectiva
+para hacer predicciones basadas en los atributos de los nodos en una
+red. Este método se centra en utilizar la información de los nodos
+adyacentes (vecinos) para predecir el valor del atributo de un nodo
+específico, antes de entrar al metodo exploremos 3 conceptos claves.</p>
+<ul>
+<li><p><strong>Colección de Atributos Nodales</strong>: Consideramos una
+colección de atributos nodales <span class="math inline">\(\left\{X_i\right\}\)</span> que no dependen del
+tiempo. Es decir, estamos interesados en un atributo que es estático y
+no cambia con el tiempo.</p></li>
+<li><p><strong>Vecindad</strong>: La vecindad de un nodo <span class="math inline">\(i\)</span> en el grafo <span class="math inline">\(G\)</span>, denotada por <span class="math inline">\(\mathcal{N}_i\)</span>, es el conjunto de nodos
+que están directamente conectados a <span class="math inline">\(i\)</span>. Estos nodos son los vecinos más
+cercanos de <span class="math inline">\(i\)</span>.</p></li>
+<li><p><strong>Número de Vecinos</strong>: <span class="math inline">\(\left|\mathcal{N}_i\right|\)</span> representa el
+número de vecinos que tiene el nodo <span class="math inline">\(i\)</span> en el grafo <span class="math inline">\(G\)</span>.</p></li>
+</ul>
+<p>La <strong>predicción del atributo</strong> de un nodo <span class="math inline">\(i\)</span> se realiza calculando el promedio de
+los atributos de sus vecinos más cercanos. Este promedio se utiliza como
+una <strong>estimación del atributo</strong> de <span class="math inline">\(i\)</span>. Matemáticamente, el promedio de los
+vecinos más cercanos se calcula como:</p>
 <p><span class="math display">\[
 \frac{\sum_{j \in \mathcal{N}_i} x_j}{|\mathcal{N}_i|},
 \]</span></p>
+<p>donde:</p>
 <ul>
-<li><span class="math inline">\(\mathcal{N}_i\)</span> es la vecindad de
-<span class="math inline">\(i\)</span> en <span class="math inline">\(G\)</span>.</li>
-<li><span class="math inline">\(|\mathcal{N}_i|\)</span> es el número de
-vecinos de <span class="math inline">\(i\)</span> en <span class="math inline">\(G\)</span>.</li>
+<li><span class="math inline">\(\sum_{j \in \mathcal{N}_i} x_j\)</span>
+es la suma de los atributos de todos los vecinos de <span class="math inline">\(i\)</span>.</li>
+<li><span class="math inline">\(\left|\mathcal{N}_i\right|\)</span> es
+el número de vecinos de <span class="math inline">\(i\)</span>.</li>
 </ul>
-<p>Al momento de predecir <span class="math inline">\(\vec{X}\)</span>,
-usualmente se compara con un umbral de 0.5. Luego, si el
-<strong>promedio de los vecinos más cercanos</strong> es mayor a ese
-umbral, se dirá que la predicción <span class="math inline">\(X_i =
-1\)</span>.</p>
+<p>Para hacer una <strong>predicción binaria</strong> del atributo del
+nodo <span class="math inline">\(i\)</span> (es decir, decidir si <span class="math inline">\(X_i = 1\)</span> o <span class="math inline">\(X_i
+= 0\)</span>), <strong>se compara</strong> el promedio de los atributos
+de los vecinos con un <strong>umbral</strong>. Comúnmente, se utiliza un
+umbral de 0.5. Esto significa que:</p>
+<ul>
+<li>Si el promedio de los vecinos más cercanos es <strong>mayor a
+0.5</strong>, se predice que <span class="math inline">\(X_i =
+1\)</span>.</li>
+<li>Si el promedio es <strong>menor o igual a 0.5</strong>, se predice
+que <span class="math inline">\(X_i = 0\)</span></li>
+</ul>
+<div id="ejemplo-ilustrativo" class="section level3">
+<h3>Ejemplo Ilustrativo</h3>
+<p>Imaginemos una <strong>red social</strong> donde cada nodo representa
+a una persona, y el atributo <span class="math inline">\(X_i\)</span>
+indica si una persona <strong>está interesada en un tema
+específico</strong> (1 si está interesada, 0 si no lo está). Para
+predecir si una persona <span class="math inline">\(i\)</span> está
+interesada en el tema, calculamos el promedio de los intereses de sus
+amigos (vecinos):</p>
+<ol style="list-style-type: decimal">
+<li><strong>Contamos</strong> el número de amigos interesados en el
+tema.</li>
+<li><strong>Dividimos</strong> este número por el total de amigos.</li>
+<li><strong>Comparamos</strong> el resultado con el umbral de 0.5.</li>
+</ol>
+<p>Si el promedio es mayor a 0.5, predecimos que la persona <span class="math inline">\(i\)</span> está interesada en el tema. De lo
+contrario, predecimos que no lo está.</p>
+<p>Y así es como funcionaria el método de vecinos más cercanos.</p>
+</div>
 </div>
 <div id="ejemplo-red-de-proteínas-y-método-del-vecino-más-cercano" class="section level2">
 <h2>2.1 Ejemplo red de proteínas y Método del vecino más cercano</h2>
-<p>Red de proteínas que pertenecen a la levadura de panadería
-<strong>Saccharomyces cerevisiae</strong>, reunidas por Jiang et al. de
-diversas fuentes con descripción de algunas funcionalidades y atributos
-de las proteínas. El atributo nodal <em>ICSC</em> es un vector binario
-que indica aquellas proteínas que tienen como <strong>función “cascada
-de señalización intracelular”</strong> (<em>ICSC</em>), una forma
-específica de comunicación celular.</p>
+<p>Red de <strong>proteínas</strong> que pertenecen a la levadura de
+panadería <strong>Saccharomyces cerevisiae</strong>, reunidas por Jiang
+et al. de diversas fuentes con descripción de algunas funcionalidades y
+atributos de las proteínas. El atributo nodal <em>ICSC</em> es un vector
+binario que indica aquellas proteínas que tienen como <strong>función
+“cascada de señalización intracelular”</strong> (<em>ICSC</em>), una
+forma específica de comunicación celular.</p>
 <pre class="r"><code># semilla para garantizar reproducibilidad
 set.seed(42)
 # Importancion de la libreria sand y los datos ppi.CC
@@ -656,7 +708,7 @@ m2.mrf$coefficients</code></pre>
 <pre><code>##   (Intercept)  gene.motifs1  gene.motifs2  gene.motifs3  gene.motifs4 
 ##  5.081573e-02  1.876848e+00  1.875217e+01  1.875217e+01  1.824990e+01 
 ##  gene.motifs5  gene.motifs6           eta 
-##  8.031388e-08 -1.837997e+01  1.297921e+00</code></pre>
+##  8.487244e-08 -1.837997e+01  1.297921e+00</code></pre>
 <pre class="r"><code># vector booleano que marca verdadero si se supera el umbral
 # cálculo de la tasa de error
 mrf.pred2 &lt;- as.numeric((m2.mrf$fitted.values &gt; 0.5))
