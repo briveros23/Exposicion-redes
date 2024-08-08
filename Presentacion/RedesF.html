@@ -403,7 +403,7 @@ de interés</strong> y si el nodo no presenta el atributo de interés.</p>
 para hacer predicciones basadas en los atributos de los nodos en una
 red. Este método se centra en utilizar la información de los nodos
 adyacentes (vecinos) para predecir el valor del atributo de un nodo
-específico, antes de entrar al metodo exploremos 3 conceptos claves.</p>
+específico, antes de entrar al método exploremos 3 conceptos claves.</p>
 <ul>
 <li><p><strong>Colección de Atributos Nodales</strong>: Consideramos una
 colección de atributos nodales <span class="math inline">\(\left\{X_i\right\}\)</span> que no dependen del
@@ -708,7 +708,7 @@ m2.mrf$coefficients</code></pre>
 <pre><code>##   (Intercept)  gene.motifs1  gene.motifs2  gene.motifs3  gene.motifs4 
 ##  5.081573e-02  1.876848e+00  1.875217e+01  1.875217e+01  1.824990e+01 
 ##  gene.motifs5  gene.motifs6           eta 
-##  8.487244e-08 -1.837997e+01  1.297921e+00</code></pre>
+##  8.031388e-08 -1.837997e+01  1.297921e+00</code></pre>
 <pre class="r"><code># vector booleano que marca verdadero si se supera el umbral
 # cálculo de la tasa de error
 mrf.pred2 &lt;- as.numeric((m2.mrf$fitted.values &gt; 0.5))

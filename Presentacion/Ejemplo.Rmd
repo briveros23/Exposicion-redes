@@ -16,13 +16,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Descripción
 
-Este conjunto de datos contiene la red de liderazgo de los Departamentos de Salud Locales (LHD) de los Estados Unidos, para su uso con el texto de Sage, "Introducción a la Modelización de Grafos Aleatorios Exponenciales" de Jenine K. Harris.
+Este conjunto de datos contiene la **red de liderazgo de los Departamentos de Salud Locales** (LHD) de los Estados Unidos, para su uso con el texto de Sage, **Introducción a la Modelización de Grafos Aleatorios Exponenciales** de Jenine K. Harris.
 
 ### Formato
 Un objeto de red con 1,283 vértices y 2,708 aristas.
 
 ### Detalles
-Los datos incluyen un objeto de red denominado 'lhds' que consiste en 1,283 departamentos de salud locales y los enlaces de comunicación entre sus líderes. La red es no dirigida y las conexiones están presentes o ausentes (no ponderadas). Los atributos de los miembros de la red incluyen: el estado en el que se encuentran, si realizan programas de detección de VIH o programas de nutrición, cuántas personas viven en la jurisdicción del departamento, y el número de años de experiencia que tiene el líder.
+Los datos incluyen un objeto de red denominado 'lhds' que consiste en **1,283 departamentos de salud locales** y los **enlaces de comunicación entre sus líderes**. La red es no dirigida y las conexiones están presentes o ausentes (**no ponderadas**). Los atributos de los miembros de la red incluyen: el estado en el que se encuentran, si realizan **programas de detección de VIH** o **programas de nutrición**, cuántas personas viven en la jurisdicción del departamento, y el número de años de experiencia que tiene el líder.
 
 ##  Tratamiento de datos y gráfico de la componente gigante
 

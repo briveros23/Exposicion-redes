@@ -366,10 +366,10 @@ redes</h1>
 <h1>Red de Comunicación de Departamentos de Salud Locales</h1>
 <div id="descripción" class="section level3">
 <h3>Descripción</h3>
-<p>Este conjunto de datos contiene la red de liderazgo de los
-Departamentos de Salud Locales (LHD) de los Estados Unidos, para su uso
-con el texto de Sage, “Introducción a la Modelización de Grafos
-Aleatorios Exponenciales” de Jenine K. Harris.</p>
+<p>Este conjunto de datos contiene la <strong>red de liderazgo de los
+Departamentos de Salud Locales</strong> (LHD) de los Estados Unidos,
+para su uso con el texto de Sage, <strong>Introducción a la Modelización
+de Grafos Aleatorios Exponenciales</strong> de Jenine K. Harris.</p>
 </div>
 <div id="formato" class="section level3">
 <h3>Formato</h3>
@@ -378,13 +378,14 @@ Aleatorios Exponenciales” de Jenine K. Harris.</p>
 <div id="detalles" class="section level3">
 <h3>Detalles</h3>
 <p>Los datos incluyen un objeto de red denominado ‘lhds’ que consiste en
-1,283 departamentos de salud locales y los enlaces de comunicación entre
-sus líderes. La red es no dirigida y las conexiones están presentes o
-ausentes (no ponderadas). Los atributos de los miembros de la red
-incluyen: el estado en el que se encuentran, si realizan programas de
-detección de VIH o programas de nutrición, cuántas personas viven en la
-jurisdicción del departamento, y el número de años de experiencia que
-tiene el líder.</p>
+<strong>1,283 departamentos de salud locales</strong> y los
+<strong>enlaces de comunicación entre sus líderes</strong>. La red es no
+dirigida y las conexiones están presentes o ausentes (<strong>no
+ponderadas</strong>). Los atributos de los miembros de la red incluyen:
+el estado en el que se encuentran, si realizan <strong>programas de
+detección de VIH</strong> o <strong>programas de nutrición</strong>,
+cuántas personas viven en la jurisdicción del departamento, y el número
+de años de experiencia que tiene el líder.</p>
 </div>
 <div id="tratamiento-de-datos-y-gráfico-de-la-componente-gigante" class="section level2">
 <h2>Tratamiento de datos y gráfico de la componente gigante</h2>
@@ -406,7 +407,7 @@ class(lhds)</code></pre>
 lhds&lt;-asIgraph(lhds)
 # resumen del grafo
 summary(lhds)</code></pre>
-<pre><code>## IGRAPH dbfd805 U--- 1283 2708 -- 
+<pre><code>## IGRAPH 45fd6f2 U--- 1283 2708 -- 
 ## + attr: title (g/c), hivscreen (v/c), na (v/l), nutrition (v/c), popmil
 ## | (v/n), state (v/c), vertex.names (v/c), years (v/n), na (e/l)</code></pre>
 <pre class="r"><code># Cambiar los valores NA en &quot;NA&quot; para hacer la binarización y que no se presenten problemas
@@ -728,7 +729,7 @@ class(lhds)</code></pre>
 <pre><code>## [1] &quot;network&quot;</code></pre>
 <pre class="r"><code>lhds&lt;-asIgraph(lhds)
 summary(lhds)</code></pre>
-<pre><code>## IGRAPH fa37dd9 U--- 1283 2708 -- 
+<pre><code>## IGRAPH 638b318 U--- 1283 2708 -- 
 ## + attr: title (g/c), hivscreen (v/c), na (v/l), nutrition (v/c), popmil
 ## | (v/n), state (v/c), vertex.names (v/c), years (v/n), na (e/l)</code></pre>
 <pre class="r"><code># mejor threshold 
@@ -788,7 +789,7 @@ K2 &lt;- as.kernelMatrix(K2.tmp)
 m2.svm &lt;- ksvm(K2, X,prob.model=TRUE)
 m2.svm.fitted &lt;- as.numeric(fitted(m2.svm)&gt;0.5)
 summary(lhds.gc)</code></pre>
-<pre><code>## IGRAPH fa3bf39 U--- 1083 2539 -- 
+<pre><code>## IGRAPH 638e43e U--- 1083 2539 -- 
 ## + attr: title (g/c), hivscreen (v/c), na (v/l), nutrition (v/c), popmil
 ## | (v/n), state (v/c), vertex.names (v/c), years (v/n),
 ## | hivscreen.numeric (v/n), nutrition.numeric (v/n), na (e/l)</code></pre>

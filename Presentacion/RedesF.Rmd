@@ -29,7 +29,7 @@ A $\{X_i\}$ se le conoce como un **proceso estático** y a $\{X_i(t)\}$ como un 
 
 ## 2 Método del vecino más cercano
 
-El método del vecino más cercano es una técnica simple pero efectiva para hacer predicciones basadas en los atributos de los nodos en una red. Este método se centra en utilizar la información de los nodos adyacentes (vecinos) para predecir el valor del atributo de un nodo específico, antes de entrar al metodo exploremos 3 conceptos claves. 
+El método del vecino más cercano es una técnica simple pero efectiva para hacer predicciones basadas en los atributos de los nodos en una red. Este método se centra en utilizar la información de los nodos adyacentes (vecinos) para predecir el valor del atributo de un nodo específico, antes de entrar al método exploremos 3 conceptos claves. 
 
 
 - **Colección de Atributos Nodales**: Consideramos una colección de atributos nodales \(\left\{X_i\right\}\) que no dependen del tiempo. Es decir, estamos interesados en un atributo que es estático y no cambia con el tiempo.
