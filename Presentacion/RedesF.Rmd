@@ -228,13 +228,13 @@ Al hacer los siguientes supuestos:
 -   Solo los **clanes** $c \in \mathcal{C}$ de **tamaño uno o dos** tienen funciones de energía $U_c$ distintas de cero.
 -   Las **probabilidades condicionales** tienen una forma de la **familia exponencial**.
 
-$$ U(x) = \sum_{i \in V} x_i H_i(x_i) + \sum_{\{i,j\} \in E} B_{ij} x_i x_j $$
+$$ U(x) = \sum_{i \in V} x_i H_i(x_i) + \sum_{\{i,j\} \in E} \beta_{ij} x_i x_j $$
 
 Los modelos con esta función de energía son llamados **modelos auto** por Besag.
 
 Ahora, si se supone que $X_i$ es una variable binaria,
 
-$$ U(x) = \sum_{i \in V} \alpha_i x_i + \sum_{\{i,j\} \in E} B_{ij} x_i x_j $$
+$$ U(x) = \sum_{i \in V} \alpha_i x_i + \sum_{\{i,j\} \in E} \beta_{ij} x_i x_j $$
 
 El modelo MRF resultante es llamado modelo **autologístico** debido a que si se asume que $\alpha_i \equiv \alpha$ y $\beta_{ij} \equiv \beta$ la probabilidad condicional se puede expresar como:
 
@@ -266,16 +266,25 @@ donde:
 -   $M_{11}(x)$ es el doble del número de pares de vértices donde ambos tienen el atributo, en otras palabras, donde $x_i = x_j = 1$ para alguna arista $(i, j) \in G$.
 -   $\kappa(\alpha, \beta)$ es la función de partición.
 
-La función $\kappa$ hace que la **estimación sea muy demandante computacionalmente**, por lo tanto, esta maximización se hace mediante el **método denominado pseudo-máxima verosimilitud**, originalmente propuesto por Besag para el análisis de datos espaciales. Resultando en que la estimación de la pseudo-verosimilitud es el valor que maximiza la siguiente expresión:
+La función $\kappa$ hace que la **estimación sea muy demandante computacionalmente**, por lo tanto, esta maximización se hace mediante el **método denominado pseudo-máxima verosimilitud**, originalmente propuesto por Besag para el análisis de datos espaciales, la cual es este caso es una aproximación usada pare reducir el impacto computacional. Resultando en que la estimación de la pseudo-verosimilitud es el valor que maximiza la siguiente expresión:   
 
 $$ \alpha M_1(x) + \beta M_{11}(x) - \sum_{i=1}^{N_V} \log \left[ 1 + \exp\left( \alpha + \beta \sum_{j \in \mathcal{N}_i} x_j \right) \right]. $$
+
 
 ### 3.3 Ejemplo red de proteínas y Modelo Auto Logístico
 
 ```{r,include = T}
 suppressMessages(suppressWarnings(library(ngspatial)))
 ```
+Las variables endógenas en un grafo son aquellas que se derivan de la estructura interna de la red. Es decir, dependen exclusivamente de las propiedades del grafo mismo, estas se resumen bajo el paramtro $\eta$ .
 
+ejemplos:
+
+```{r}
+# se asigna la correspondiente forma a un modelo mrf que no tiene atributos nodales
+formula1 <- X~1
+```
+Las variables exógenas son aquellas que se introducen desde fuera del sistema de la red y no dependen directamente de la estructura del grafo, pero pueden influir en la formación o el comportamiento de la red, en este caso las propiedades de las levaduras a trabajar. 
 ```{r}
 # se toman característica de la red asociadas con cada nodo
 gene.motifs <- cbind(V(ppi.CC.gc)$IPR000198, # vectores binarios
@@ -286,11 +295,6 @@ gene.motifs <- cbind(V(ppi.CC.gc)$IPR000198, # vectores binarios
                      V(ppi.CC.gc)$IPR003527)
 # se asigna la correspondiente forma a un modelo mrf que tiene atributos nodales
 formula <- X ~ gene.motifs
-```
-
-```{r}
-# se asigna la correspondiente forma a un modelo mrf que no tiene atributos nodales
-formula1 <- X~1
 ```
 
 ```{r}
@@ -351,6 +355,8 @@ mean(as.numeric(mrf.pred2 != V(ppi.CC.gc)$ICSC))
 # predicciones de las proteinas que antes no se sabia que tenian ICSC
 m2.mrf$fitted.values[V(ppi.CC.gc)$name %in% new.icsc]
 ```
+
+
 
 ### 3.4 Bondad Y ajuste
 
@@ -421,6 +427,9 @@ abline(v = quantile(a2.mrf, 0.95), col = "blue", lty = 2)
 ```{r}
 summary(a2.mrf)
 ```
+
+Para estos dos modelos, los valores predictivos posteriores de 0.14 y 0.1 sugieren que la asortatividad está siendo subestimada. Estos valores indican que, aunque los modelos son aceptables y capturan de manera razonable la estructura de asortatividad observada, no logran ajustarse perfectamente a los datos. En consecuencia, el modelo que utiliza únicamente variables endógenas podría ser el más adecuado, ya que probablemente proporciona una mejor representación de la asortatividad en comparación con los modelos que incluyen otras variables. 
+
 
 ## 4 Método Kernel
 
@@ -724,6 +733,14 @@ $$
 
 -   $M_i(\mathbf{x})$ es el número de vecinos de $i$ infectados en el momento $t$.
 
+### 5.3 Simulación 
+
+**ER (Erdős–Rényi):** Cada par de nodos tiene una probabilidad fija de estar conectado. Este modelo genera redes con una distribución de grado que sigue una distribución de Poisson, donde la mayoría de los nodos tienen un número similar de conexiones.
+
+**BA (Barabási–Albert):** Modelo de red de preferencia preferencial o "rich-get-richer", donde los nodos con más conexiones tienen mayor probabilidad de recibir nuevas conexiones. Esto genera redes con una estructura de "cola larga", con unos pocos nodos altamente conectados (hubs) y muchos nodos con pocas conexiones.
+
+**WS (Watts–Strogatz):** Un modelo de red de pequeño mundo que comienza con un anillo regular y luego se agregan aleatoriamente atajos entre nodos. Esto produce redes que combinan alta agrupación local con un bajo número de pasos entre cualquier par de nodos (pequeña distancia promedio).
+
 ```{r}
 set.seed(42)
 gl <- list()
@@ -748,10 +765,12 @@ sim <- lapply(gl, sir, beta=beta, gamma=gamma,
 ```
 
 ```{r}
-# realizaciones del número de infectados el proceso SIR
+# Calcular x.max e y.max para el gráfico combinado
+x.max <- max(sapply(sapply(sim, time_bins), max))
+y.max <- 1.05 * max(sapply(sapply(sim, function(x)
+  median(x)[["NI"]]), max, na.rm=TRUE))
 
-# Dividir la ventana de gráficos en 3 paneles verticales
-par(mfrow = c(3,1))
+par(mfrow = c(2,2), mar=c(4, 4, 2, 2))
 
 # Gráfico 1: ER
 plot(sim$er)
@@ -764,11 +783,22 @@ plot(sim$ba, color = "palegoldenrod",
 plot(sim$ws, color = "pink", median_color = "red",
      quantile_color = "red")
 
+# Gráfico 4: Líneas superpuestas
+plot(time_bins(sim$er), median(sim$er)[["NI"]],
+     type="l", lwd=2, col="blue", xlim=c(0, x.max),
+     ylim=c(0, y.max), xlab="Time",
+     ylab=expression(N[I](t)))
+lines(time_bins(sim$ba), median(sim$ba)[["NI"]],
+      lwd=2, col="gold")
+lines(time_bins(sim$ws), median(sim$ws)[["NI"]],
+      lwd=2, col="red")
+legend("topright", c("ER", "BA", "WS"),
+       col=c("blue", "gold", "red"), lty=1)
 ```
 
-En cada panel se muestran las trayectorias de simulación individuales, así como sus medianas y sus cuantiles 10 y 90%
+En cada panel se muestran las trayectorias de simulación individuales, así como sus medianas y sus cuantiles 10 y 90%.
 
-```{r}
+```{r,echo=FALSE}
 x.max <- max(sapply(sapply(sim, time_bins), max))
 y.max <- 1.05 * max(sapply(sapply(sim, function(x)
   median(x)[["NI"]]), max, na.rm=TRUE))
@@ -783,11 +813,12 @@ lines(time_bins(sim$ws), median(sim$ws)[["NI"]],
       lwd=2, col="red")
 legend("topright", c("ER", "BA", "WS"),
        col=c("blue", "gold", "red"), lty=1)
-
-
 ```
 
+
 Las realizaciones del número de infectados $N_{I}(t)$ para el proceso SIR basado en una red simulada en un grafo aleatorio de Erdos-Renyi (azul), grafo aleatorio de Barabasi-Albert (amarillo) y un grafo aleatorio mundo pequeño de Watts-Strogatz (rojo).
+
+
 
 ## Referencias:
 
