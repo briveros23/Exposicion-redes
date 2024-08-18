@@ -87,7 +87,7 @@ observar los nodos vecinos generalmente comparten el mismo color, por lo
 tanto, es un buen indicador de que la predicción local del ICSS debería
 ser factible.
 
-```{r, fig.cap = " Fig. 8.1 - Red de interacciones entre proteínas conocidas como responsables de la comunicación celular en la levadura. Los vértices amarillos denotan proteínas que se sabe que participan en cascadas de señalización intracelular, una forma específica de comunicación en la célula. El resto de proteínas se indican en azul"}
+```{r, fig.align = 'center', fig.cap = " Fig. 8.1 - Red de interacciones entre proteínas conocidas como responsables de la comunicación celular en la levadura. Los vértices amarillos denotan proteínas que se sabe que participan en cascadas de señalización intracelular, una forma específica de comunicación en la célula. El resto de proteínas se indican en azul"}
 
 V(ppi.CC)[ICSC == 1]$color <- "yellow"
 V(ppi.CC)[ICSC == 0]$color <- "blue"
@@ -136,13 +136,14 @@ proteína tiene como funcionalidad ICSC o no.
 
 ```{r,  fig.cap="Fig. 8.2 Histogramas de los promedios del vecino más próximo para la red mostrada en la Fig. 8.1, separados según el estado del vértice que define cada vecindad"}
 
-par(mfrow=c(2,1))
+par(mfrow=c(1,2))
 hist(nn.ave[V(ppi.CC.gc)$ICSC == 1], col="yellow",
-   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
-   main="Egos w/ ICSC")
+   ylim=c(0, 30), breaks = 10, ylab = "Frecuencia", xlab="Proporción Vecinos con ICSC",
+   main="Egos con ICSC")
 hist(nn.ave[V(ppi.CC.gc)$ICSC == 0], col="blue",
-   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
-   main="Egos w/out ICSC")
+   ylim=c(0, 30), breaks = 10, ylab = "Frecuencia", xlab="Proporción Vecinos sin ICSC",
+   main="Egos sin ICSC")
+par(mfrow=c(1,1))
 ```
 
 Luego, al comparar los valores predichos con los de la red, se puede

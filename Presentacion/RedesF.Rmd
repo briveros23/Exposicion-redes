@@ -9,38 +9,39 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+  echo = TRUE,         # Mostrar el código en el documento
+  warning = FALSE,     # Ocultar warnings
+  message = FALSE,     # Ocultar mensajes
+  fig.width = 10,       # Ancho de las figuras
+  fig.height = 7,      # Alto de las figuras
+  fig.align = 'center' # Alinear las figuras en el centro
+)
 ```
 
 ## 1 Introducción
 
-En el estudio de redes, a menudo se presta mayor atención a los **atributos nodales** que a las relaciones entre los nodos. Esto se debe a que los atributos de los nodos, tales como **comportamientos, creencias o estados de salud**, pueden ser fuertemente influenciados por las conexiones y las **interacciones dentro de la red**. Para ilustrar esto, consideremos los siguientes ejemplos:
+En el estudio de redes, se suele priorizar los **atributos nodales** sobre las relaciones entre nodos, ya que atributos como **comportamientos, creencias o estados de salud** pueden ser influenciados por las **interacciones dentro de la red**. Ejemplos clave incluyen:
 
--   **Influencia de las interacciones en comportamientos y creencias**
--   **Riesgo de contagio en contextos de salud**
+-**Influencia de interacciones en comportamientos y creencias**-**Riesgo de contagio en contextos de salud**
 
-Estos ejemplos muestran cómo los atributos asociados a los nodos en una red pueden ser tratados como **procesos estocásticos**. Un proceso estocástico es una **colección de variables aleatorias** que representan la evolución de un sistema a lo largo del tiempo o en un espacio determinado. En el contexto de redes, podemos definir estos procesos estocásticos sobre un grafo \( G = (V, E) \), donde \( V \) es el conjunto de nodos y \( E \) es el conjunto de aristas. Las variables aleatorias \(\vec{X}\) están indexadas por los nodos del grafo, es decir:
+Estos ejemplos tratan los atributos nodales como **procesos estocásticos**, es decir, **colecciones de variables aleatorias** que describen la evolución de un sistema en el tiempo o espacio. En una red, estos procesos se definen sobre un grafo \( G = (V, E) \), con \( V \) como nodos y \( E \) como aristas. Las variables aleatorias \(\vec{X}\) están indexadas por los nodos, así:
 
-- \(\left\{X_i\right\}\) para \(i \in V\), representando un **proceso estático**.
-- \(\left\{X_i(t)\right\}\), con \(t\) variando en el tiempo, representando un **proceso dinámico**.
+- \(\{X_i\}\) para \(i \in V\): **proceso estático**.
+- \(\{X_i(t)\}\), con \(t\) en el tiempo: **proceso dinámico**.
 
+En este cuaderno, se considera \(\vec{X}\) un **vector binario** donde \textbf{1} indica la presencia del **atributo de interés** y \textbf{0} su ausencia.
 
-A $\{X_i\}$ se le conoce como un **proceso estático** y a $\{X_i(t)\}$ como un **proceso dinámico**. En este cuaderno se considerará $\vec{X}$ como un **vector binario** cuyo valor será \textbf{1} si el nodo presenta el **atributo de interés** y \textbf{0} si el nodo no presenta el atributo de interés.
 
 ## 2 Método del vecino más cercano
 
-El método del vecino más cercano es una técnica simple pero efectiva para hacer predicciones basadas en los atributos de los nodos en una red. Este método se centra en utilizar la información de los nodos adyacentes (vecinos) para predecir el valor del atributo de un nodo específico, antes de entrar al método exploremos 3 conceptos claves. 
+El método del vecino más cercano es una técnica simple para predecir atributos nodales usando la información de los nodos adyacentes. Antes de explicarlo, es importante definir tres conceptos clave:
 
+-**Colección de Atributos Nodales**: \(\{X_i\}\) representa un atributo estático, es decir, que no cambia con el tiempo.
+- **Vecindad**: \(\mathcal{N}_i\) es el conjunto de nodos conectados directamente al nodo \(i\) en el grafo \(G\).
+-**Número de Vecinos**: \(\left|\mathcal{N}_i\right|\) es la cantidad de vecinos del nodo \(i\).
 
-- **Colección de Atributos Nodales**: Consideramos una colección de atributos nodales \(\left\{X_i\right\}\) que no dependen del tiempo. Es decir, estamos interesados en un atributo que es estático y no cambia con el tiempo.
-
--  **Vecindad**: La vecindad de un nodo \(i\) en el grafo \(G\), denotada por \(\mathcal{N}_i\), es el conjunto de nodos que están directamente conectados a \(i\). Estos nodos son los vecinos más cercanos de \(i\).
-
--  **Número de Vecinos**: \(\left|\mathcal{N}_i\right|\) representa el número de vecinos que tiene el nodo \(i\) en el grafo \(G\).
-
-
-La **predicción del atributo** de un nodo \(i\) se realiza calculando el promedio de los atributos de sus vecinos más cercanos. Este promedio se utiliza como una **estimación del atributo** de \(i\). Matemáticamente, el promedio de los vecinos más cercanos se calcula como:
-
+La **predicción del atributo** de \(i\) se realiza calculando el promedio de los atributos de sus vecinos más cercanos:
 
 $$
 \frac{\sum_{j \in \mathcal{N}_i} x_j}{|\mathcal{N}_i|},
@@ -48,25 +49,26 @@ $$
 
 donde:
 
-- \(\sum_{j \in \mathcal{N}_i} x_j\) es la suma de los atributos de todos los vecinos de \(i\).
+- \(\sum_{j \in \mathcal{N}_i} x_j\) es la suma de los atributos de los vecinos de \(i\).
 - \(\left|\mathcal{N}_i\right|\) es el número de vecinos de \(i\).
 
-Para hacer una **predicción binaria** del atributo del nodo \(i\) (es decir, decidir si \(X_i = 1\) o \(X_i = 0\)), **se compara** el promedio de los atributos de los vecinos con un **umbral**. Comúnmente, se utiliza un umbral de 0.5. Esto significa que:
+Para una **predicción binaria** (es decir, \(X_i = 1\) o \(X_i = 0\)), se compara el promedio con un **umbral**, usualmente 0.5:
 
-- Si el promedio de los vecinos más cercanos es **mayor a 0.5**, se predice que \(X_i = 1\).
-- Si el promedio es **menor o igual a 0.5**, se predice que \(X_i = 0\)
+- Si el promedio es **mayor a 0.5**, se predice \(X_i = 1\).
+- Si es **menor o igual a 0.5**, se predice \(X_i = 0\).
 
 ### Ejemplo Ilustrativo
 
-Imaginemos una **red social** donde cada nodo representa a una persona, y el atributo \(X_i\) indica si una persona **está interesada en un tema específico** (1 si está interesada, 0 si no lo está). Para predecir si una persona \(i\) está interesada en el tema, calculamos el promedio de los intereses de sus amigos (vecinos):
+En una **red social**, \(X_i\) podría indicar si una persona \(i\) está interesada en un tema específico (1 para sí, 0 para no). Para predecir si una persona está interesada:
 
-1. **Contamos** el número de amigos interesados en el tema.
-2. **Dividimos** este número por el total de amigos.
-3. **Comparamos** el resultado con el umbral de 0.5.
+1.**Contamos** el número de amigos interesados.
+2.**Dividimos** por el total de amigos.
+3.**Comparamos** con el umbral de 0.5.
 
-Si el promedio es mayor a 0.5, predecimos que la persona \(i\) está interesada en el tema. De lo contrario, predecimos que no lo está.
+Si el promedio supera 0.5, se predice que \(i\) está interesada; de lo contrario, no lo está.
 
-Y así es como funcionaria el método de vecinos más cercanos.
+Así funciona el método del vecino más cercano.
+
 
 
 ## 2.1 Ejemplo red de proteínas y Método del vecino más cercano
@@ -119,17 +121,16 @@ nn.ave <- sapply(V(ppi.CC.gc),
 ```
 
 ```{r}
-par(mfrow=c(2,1))
-# histogramas del promedio del vecino más cercano 
-# amarillo presenta ICSC
-
-hist(nn.ave[V(ppi.CC.gc)$ICSC == 1], col="yellow",
-   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
-   main="Egos w/ ICSC")
-# azul no presenta ICSC
-hist(nn.ave[V(ppi.CC.gc)$ICSC == 0], col="blue",
-   ylim=c(0, 30), xlab="Proportion Neighbors w/ ICSC",
-   main="Egos w/out ICSC")
+par(mfrow=c(1,2))
+hist(nn.ave[V(ppi.CC.gc)$ICSC == 1], col = adjustcolor('yellow', 0.6), border = "yellow2",
+   ylim=c(0, 30), breaks = 10, ylab = "Frecuencia", xlab="Proporción Vecinos con ICSC",
+   main="Egos con ICSC")
+abline(v=0.5, col="black", lty=2)
+hist(nn.ave[V(ppi.CC.gc)$ICSC == 0], col = adjustcolor('royalblue', 0.6), border = "royalblue",
+   ylim=c(0, 30), breaks = 10, ylab = "Frecuencia", xlab="Proporción Vecinos sin ICSC",
+   main="Egos sin ICSC")
+abline(v=0.5, col="black", lty=2)
+par(mfrow=c(1,1))
 ```
 
 ```{r}
@@ -163,6 +164,8 @@ icst.ida <- current.icst[[1]][ev.code == "IDA"]
 
 ```
 
+Aquí, **current.icst** contiene las proteínas asociadas con la cascada de señalización intracelular (ICSC) identificadas por el código GO **GO:0035556**, y **icst.ida** filtra aquellas proteínas con evidencia del tipo **"IDA"**.
+
 ```{r}
 # nombres de las proteínas que tienen ICSC en la componente gigante
 orig.icsc <- V(ppi.CC.gc)[ICSC == 1]$name
@@ -179,12 +182,14 @@ new.icsc <- setdiff(candidates, orig.icsc)
 new.icsc
 ```
 
+Aquí, **candidates** contiene todas las proteínas actualizadas que coinciden con los nombres en la componente gigante, y **new.icsc** identifica aquellas proteínas que son nuevas, es decir, que no estaban **previamente catalogadas** como ICSC en la componente gigante.
+
 ```{r}
 # predicciones de las proteinas que antes no se sabia que tenian ICSC
 nn.ave[V(ppi.CC.gc)$name %in% new.icsc]
 ```
 
-El método del vecino más cercano puede generalizarse mediante la construcción de un modelo estadístico apropiado, lo que permitirá hacer predicciones más precisas. Este modelo puede incluir variables tanto endógenas como exógenas de la red.
+El método del **vecino más cercano** puede **generalizarse** mediante la construcción de un modelo estadístico apropiado, lo que permitirá hacer **predicciones más precisas**. Este modelo puede incluir **variables** tanto **endógenas** como **exógenas** de la red.
 
 ## 3 Campos aleatorios de Markov
 
@@ -394,7 +399,7 @@ for(i in 1:ntrials){
 assortativity(ppi.CC.gc, X+1, directed=FALSE)
 ```
 
-```{r}
+```{r, fig.width = 7, fig.height = 5}
 hist(x = a1.mrf, freq = FALSE, col = "gray95", border = "gray95", 
      xlab = 'Asortatividad', ylab = "Frecuencia", 
      main = paste('ppp =', mean(a1.mrf >= assortativity(ppi.CC.gc, X + 1, directed = FALSE))))
@@ -411,7 +416,7 @@ abline(v = quantile(a1.mrf, 0.95), col = "blue", lty = 2)
 summary(a1.mrf)
 ```
 
-```{r}
+```{r, fig.width = 7, fig.height = 5}
 hist(x = a2.mrf, freq = FALSE, col = "gray95", border = "gray95", 
      xlab = 'Asortatividad', ylab = "Frecuencia", 
      main = paste('ppp =', mean(a2.mrf >= assortativity(ppi.CC.gc, X + 1, directed = FALSE))))
@@ -430,35 +435,34 @@ summary(a2.mrf)
 
 Para estos dos modelos, los valores predictivos posteriores de 0.14 y 0.1 sugieren que la asortatividad está siendo subestimada. Estos valores indican que, aunque los modelos son aceptables y capturan de manera razonable la estructura de asortatividad observada, no logran ajustarse perfectamente a los datos. En consecuencia, el modelo que utiliza únicamente variables endógenas podría ser el más adecuado, ya que probablemente proporciona una mejor representación de la asortatividad en comparación con los modelos que incluyen otras variables. 
 
-
 ## 4 Método Kernel
 
-Los modelos probabilísticos que se acaban de utilizar se pueden complementar con algún método que **relacione los vértices y atributos mediante algún tipo de función**. Para la construcción más explícita, una buena idea es un enfoque basado en la regresión con el grafo. Sin embargo, los métodos clásicos de regresión, como los mínimos cuadrados, se utilizan para relacionar una variable respuesta y unas variables explicativas sobre un espacio euclidiano.
+Para relacionar vértices y atributos en un grafo, una opción es usar **métodos kernel**. Estos extienden la **regresión clásica** a datos no tradicionales, mediante:
 
-Así, una solución a este problema es aplicando **métodos kernel** que han demostrado ser útiles para extender el paradigma de **regresión clásico** a diversos entornos con datos no tradicionales. En el nivel más básico, estos métodos consisten en:
+- Variables predictivas generalizadas (codificadas en el kernel).
+- Regresión penalizada sobre estos predictores.
 
--   Una noción generalizada de variables predictivas (codificadas en el llamado kernel o núcleo).
--   Una regresión con una variable respuesta sobre los predictores generalizados utilizando una regresión penalizada.
+Este enfoque complementa los modelos probabilísticos, ofreciendo una forma más explícita de construcción de relaciones en el grafo.
 
 ### 4.1 Regresión Kernel
 
-El modelo de **regresión kernel** simple se utiliza cuando la variable respuesta $y$ es continua y solo hay una variable explicativa $x$, también continua. Se supone que se observan $n$ pares de datos $(x_i, y_i)$ que provienen del siguiente modelo de regresión no paramétrico:
+La **regresión kernel** se aplica cuando la variable respuesta $y$ y la explicativa $x$ son continuas. Se observan $n$ pares $(x_i, y_i)$ siguiendo el modelo no paramétrico:
 
 $$
 y_i = m(x_i) + \epsilon_i
 $$
 
--   $\epsilon_i$ son variables aleatorias independientes.
--   $m(x)$ es la función regresora sin forma especificada.
+-   $\epsilon_i$ son variables independientes.
+-   $m(x)$ es una función regresora sin forma específica.
 
-Una forma de definir $m(x)$ es mediante una **función kernel** $K$ que cumple las siguientes características:
+La función kernel $K$ que define $m(x)$ debe ser:
 
--   Es simétrica y no negativa.
--   Continua.
--   Decreciente en el intervalo $[0, \infty)$.
--   Tiende a 0 cuando el argumento tiende a infinito.
+-   Simétrica, no negativa y continua.
+-   Decreciente en $[0, \infty)$ y tendiendo a 0 cuando el argumento es infinito.
 
-![](Kernels.svg.png)
+
+<center>![](Kernels.svg.png)</center>
+
 
 Esta función le **"asigna pesos"** a las observaciones dependiendo de la **distancia de** $x_i$ al punto $t$ donde se realiza la estimación $(x_i, y_i)$ al ser evaluado en cualquier $t$ de la variable explicativa.
 
