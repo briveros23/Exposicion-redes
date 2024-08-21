@@ -16,10 +16,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Descripción
 
-Este conjunto de datos contiene la **red de liderazgo de los Departamentos de Salud Locales** (LHD) de los Estados Unidos, para su uso con el texto de Sage, **Introducción a la Modelización de Grafos Aleatorios Exponenciales** de Jenine K. Harris.
+Este conjunto de datos contiene la **red de liderazgo de los Departamentos de Salud Locales** (LHD) de los Estados Unidos, para su uso con el texto de Sage, **Introducción a la Modelización de Grafos Aleatorios Exponenciales** de Jenine K. Harris y los datos son descargados de [UserNetR en GitHub](https://github.com/DougLuke/UserNetR).
 
 ### Formato
-Un objeto de red con 1,283 vértices y 2,708 aristas.
+Un Grafo no dirigido con 1,283 vértices y 2,708 aristas.
 
 ### Detalles
 Los datos incluyen un objeto de red denominado 'lhds' que consiste en **1,283 departamentos de salud locales** y los **enlaces de comunicación entre sus líderes**. La red es no dirigida y las conexiones están presentes o ausentes (**no ponderadas**). Los atributos de los miembros de la red incluyen: el estado en el que se encuentran, si realizan **programas de detección de VIH** o **programas de nutrición**, cuántas personas viven en la jurisdicción del departamento, y el número de años de experiencia que tiene el líder.
@@ -307,7 +307,7 @@ text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1
 IP <- IP2
 aucs <- NULL
 plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos",
-     main = "MRF 2")
+     main = "MRF")
 abline(a = 0, b = 1, col = "gray", lwd = 2)
 for (l in 1:folds) {
   # datos de prueba
@@ -326,7 +326,7 @@ text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1
 IP <- IP3
 aucs <- NULL
 plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos",
-     main = "MRF 2")
+     main = "MRF con variables exogenas")
 abline(a = 0, b = 1, col = "gray", lwd = 2)
 for (l in 1:folds) {
   # datos de prueba
@@ -345,7 +345,7 @@ text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1
 IP <- IP4
 aucs <- NULL
 plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos", 
-     main='Kernel 1')
+     main='Kernel')
 abline(a = 0, b = 1, col = "gray", lwd = 2)
 for (l in 1:folds) {
   # datos de prueba
@@ -364,7 +364,7 @@ text(x = 0.7, y = 0.05, labels = paste0("AUC = ", round(mean(aucs), 4)), cex = 1
 IP <- IP5
 aucs <- NULL
 plot(NA, NA, xlim = c(0,1), ylim = c(0,1), xlab = "Tasa Falsos Positivos", ylab = "Tasa verdaderos positivos", 
-     main = "Kernel 2")
+     main = "Kernel con variables exogenas")
 abline(a = 0, b = 1, col = "gray", lwd = 2)
 for (l in 1:folds) {
   # datos de prueba

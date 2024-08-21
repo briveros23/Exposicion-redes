@@ -444,95 +444,8 @@ Para relacionar vértices y atributos en un grafo, una opción es usar **método
 
 Este enfoque complementa los modelos probabilísticos, ofreciendo una forma más explícita de construcción de relaciones en el grafo.
 
-### 4.1 Regresión Kernel
 
-La **regresión kernel** se aplica cuando la variable respuesta $y$ y la explicativa $x$ son continuas. Se observan $n$ pares $(x_i, y_i)$ siguiendo el modelo no paramétrico:
-
-$$
-y_i = m(x_i) + \epsilon_i
-$$
-
--   $\epsilon_i$ son variables independientes.
--   $m(x)$ es una función regresora sin forma específica.
-
-La función kernel $K$ que define $m(x)$ debe ser:
-
--   Simétrica, no negativa y continua.
--   Decreciente en $[0, \infty)$ y tendiendo a 0 cuando el argumento es infinito.
-
-
-<center>![](Kernels.svg.png)</center>
-
-
-Esta función le **"asigna pesos"** a las observaciones dependiendo de la **distancia de** $x_i$ al punto $t$ donde se realiza la estimación $(x_i, y_i)$ al ser evaluado en cualquier $t$ de la variable explicativa.
-
-El peso de $(x_i, y_i)$ en la estimación de $m(t)$ será:
-
-$$
-\omega_i = \omega(t, x_i) = \frac{K\left(\frac{x_i - t}{h}\right)}{\sum_{j=1}^n K\left(\frac{x_j - t}{h}\right)}
-$$
-
--   $h$ es un parámetro de escala.
-
-Una vez determinados los pesos $\omega_i$, se resuelve el problema de **mínimos cuadrados ponderados**:
-
-$$
-\underset{\beta_0, \beta_1}{\text{arg min}} \sum_{i=1}^n \omega_i \left( y_i - (\beta_0 + \beta_1 (x_i - t)) \right)^2
-$$
-
-La recta de regresión ajustada localmente alrededor de $t$ es:
-
-$$
-l_t(x) = \beta_0 + \beta_1 (x - t)
-$$
-
-y la estimación de la función de regresión en el punto $t$ es el valor que toma esta recta en $x = t$:
-
-$$
-\hat{m}(t) = l_t(t) = \beta_0
-$$
-
-Para extender la **regresión kernel** al caso en el que hay $p$ regresores, es directo:
-
-$$
-y_i = m(x_{i1}, \dots, x_{ip}) + \epsilon_i
-$$
-
-Ahora, para definir la **función de regresión**, se necesita definir los pesos de cada $\omega_i$ de cada observación.
-
-La definición de los pesos $\omega_i$ debe seguir la **misma lógica que en el caso univariado**, extendiendo la noción de **distancia al caso multivariado**, mediante la creación de una **matriz de similitud**.
-
-Una forma sencilla de asignar pesos $\omega_i$ que da buenos resultados en la práctica es la siguiente:
-
-$$
-\omega_i = \omega(t, x_i) \propto \prod_{j=1}^p K\left(\frac{x_{ij} - t_j}{h_j}\right)
-$$
-
-donde $K$ es un kernel univariado.
-
-![](MultivariateNormal.png)
-
-Siguiendo un procedimiento análogo a la regresión kernel univariada, se obtienen los vectores $Y = (y_1, \ldots, y_n)^T$, $\varepsilon = (\varepsilon_1, \ldots, \varepsilon_n)^T$, $\beta = (\beta_0, \ldots, \beta_p)^T$. Se define la matriz de pesos:
-
-$$ W_t = \text{Diag}(w(x_1, t), \ldots, w(x_n, t)). $$
-
-Ajustamos el modelo
-
-$$ Y = X \beta + \varepsilon $$
-
-por mínimos cuadrados ponderados :
-
-$$ \hat{\beta} = \arg \min_{\beta \in \mathbb{R}^{p+1}} (Y - X_t \beta)^T W_t (Y - X_t \beta). $$
-
-La solución es
-
-$$ \hat{\beta} = \left( X_t^T W_t X_t \right)^{-1} X_t^T W_t Y. $$
-
-La estimacion en el punto $t$, siguiendo la idea del caso univariado es
-
-$$\hat{m}(t)=\hat{m}(t_1,\dots,t_p)=\beta_0$$
-
-### 4.2 Diseño de kernels en grafos
+### 4.1 Diseño de kernels en grafos
 
 El diseño del kernel en grafos debe describir la **similitud** entre los vértices en el grafo $G$, así la función Kernel $K$
 
@@ -569,15 +482,14 @@ $$ f(\gamma) = \begin{cases}
 0 & \text{en otro caso.}
 \end{cases} $$
 
-### 4.3 Regresión kernel en grafos.
+### 4.2 Regresión kernel en grafos.
 
 Sea $G = (V, E)$ un grafo y $X = (X_1, \dots, X_{N_V})$ un proceso sobre un atributo nodal y sea $V^{obs}$ los nodos los cuales se conoce su atributo . Desde la perspectiva de la regresión Kernel, el objetivo es aprender de los datos sobre una función apropiada $\hat{h} \in \mathbb{R}^{N_V}$, que mapea de $V$ a $\mathbb{R}$, y que describa bien la manera en que los atributos varían entre los vértices. Más precisamente, dado un Kernel $K = \phi \Delta \phi$, se busca encontrar una elección óptima de $h$ dentro de la clase:
 
 $$ 
 \mathbb{H}_K = \{ h : h = \phi \beta \text{ tal que } \beta^T \Delta^{-1} \beta < \infty \} 
 $$
-
-cuando $h$ es un vector de longitud $|N_V|$.
+Con $\Delta$ la matriz de valores propios ordenados de mayor a menor de la descomposición espectral y $h$ un vector de longitud $|N_V|$.
 
 Para elegir un elemento $h$ apropiado en $\mathbb{H}_K$, denominado $\hat{h}$, se emplea una estrategia de **regresión penalizada**. Así, se obtiene que $\hat{h} = \phi \hat{\beta}$ minimizando con respecto a $\beta$:
 
